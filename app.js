@@ -313,7 +313,7 @@ const defaultState = () => ({schemaVersion:2,
   routine:{},
   sessions:[],
   sessionDrafts:{},
-  ui:{theme:"azul",evidenceVersion:EVIDENCE_VERSION,register:{week:"Semana 1",performedDate:"",modality:"3 días",sessionKey:"",editingSessionId:null}}
+  ui:{theme:"azul",evidenceVersion:EVIDENCE_VERSION,register:{week:"Semana 1",weekday:0,performedDate:"",modality:"3 días",sessionKey:"",editingSessionId:null},generator:{}}
 });
 
 let state = loadState();
@@ -706,19 +706,26 @@ function ensurePlannerSelection(){
 }
 function ensureGeneratedRoutineIntegrity(){
   if(!state.planMeta?.generated)return ensurePlannerSelection();
-  const days=Number(state.planMeta?.days||state.profile?.days||0);
+  const days=Math.max(1,Math.min(6,Number(state.planMeta?.days||state.profile?.days||0)));
   if(validateGeneratedRoutineObject(state.routine,days,state.weeks)){
     ensurePlannerSelection();
     return true;
   }
   const profile={...state.profile,days:String(days),level:state.planMeta.level||state.profile?.level||"Intermedio",goal:state.planMeta.goal||state.profile?.goal||"Salud general",focus:state.planMeta.focus||state.profile?.focus||"general",distribution:state.planMeta.distribution||defaultDistributionForDays(days)};
-  const repaired=buildGeneratedRoutine(days,profile.level,profile.goal,profile.focus,profile.distribution,profile,state.weeks);
-  if(!validateGeneratedRoutineObject(repaired,days,state.weeks))return false;
-  state.routine=repaired;
-  ensurePlannerSelection();
-  saveState();
-  console.warn("Prime OS: se reparó una planificación generada incompleta desde el motor determinista.");
-  return true;
+  try{
+    const repaired=buildGeneratedRoutine(days,profile.level,profile.goal,profile.focus,profile.distribution,profile,["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"]);
+    const repairedWeeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
+    if(!validateGeneratedRoutineObject(repaired,days,repairedWeeks))return false;
+    state.weeks=repairedWeeks;
+    state.routine=repaired;
+    ensurePlannerSelection();
+    saveState();
+    console.warn("Prime OS: se reparó una planificación generada incompleta desde el motor determinista.");
+    return true;
+  }catch(err){
+    console.error("Prime OS: REPAIR_GENERATED_ROUTINE_ERROR",err);
+    return false;
+  }
 }
 function reconcileGeneratedPlan(){
   return ensureGeneratedRoutineIntegrity();
