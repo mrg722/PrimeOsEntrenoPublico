@@ -1298,18 +1298,28 @@ function addWeek(){
 }
 function addExercise(fromRegister=false){
   if(fromRegister){
-    const draft=getDraft();
-    if(!draft.extra) draft.extra=[];
-    draft.extra.unshift({exercise:defaultExercise("Pecho"),sets:[],notes:""});
-    saveState();
-    renderAll();
-    setTimeout(()=>alert("Ejercicio extra añadido solo al registro. Suma series realizadas, pero no cambia el objetivo semanal de Mi rutina."),50);
+    const r=ensureRegistrationState();
+    const weekIndex=Math.max(0,Number(String(r.week||"Semana 1").match(/\d+/)?.[0]||1)-1);
+    const goal=state.planMeta?.goal||"Salud general",level=state.planMeta?.level||"Intermedio";
+    const ex=defaultExercise("Pecho");
+    hydrateExercise(ex,{goal,level,weekIndex});
+    ex.sets=prescriptionSets(ex,goal,level,weekIndex);
+    ex.loadLevel=periodizationForWeek(goal,weekIndex).loadLevel;
+    applyLoadToExercise(ex,ex.loadLevel,{goal,level,weekIndex});
+    const draft=getDraft();draft.extra=draft.extra||[];
+    draft.extra.unshift({exercise:ex,sets:[],notes:""});
+    saveState();renderAll();
     return;
   }
   const day=ensureCurrentDay();
-  day.exercises.unshift(defaultExercise("Pecho"));
-  saveState();
-  renderAll();
+  const goal=state.planMeta?.goal||"Salud general",level=state.planMeta?.level||"Intermedio",weekIndex=Number(day.weekIndex??0);
+  const ex=defaultExercise("Pecho");
+  hydrateExercise(ex,{goal,level,weekIndex});
+  ex.sets=prescriptionSets(ex,goal,level,weekIndex);
+  ex.loadLevel=periodizationForWeek(goal,weekIndex).loadLevel;
+  applyLoadToExercise(ex,ex.loadLevel,{goal,level,weekIndex});
+  day.exercises.unshift(ex);
+  saveState();renderAll();
 }
 
 function exportBackupJson(){
