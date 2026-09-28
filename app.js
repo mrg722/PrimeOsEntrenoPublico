@@ -439,32 +439,51 @@ function sourceVariantFor(type,weekIndex){
 }
 function exercisesFor(type,level,focus,context={}){
   const profile=context.profile||state.profile||{},weekIndex=Number(context.weekIndex||0);
-  // Focused sessions are still part of the same Upper/Lower family and therefore rotate only among curated variants.
   const sourceType=sourceVariantFor(type,weekIndex);
   const picks=PICK_VARIANTS[sourceType]||[["General","Ejercicio personalizado"]];
   const items=[];
   for(const [g,n] of picks){
     const item=(EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g]?.[0];
-    if(item){const ex=makeExerciseFromLibrary(item);if(isExerciseCompatible(ex,profile))items.push(ex);}
+    if(item){
+      const ex=makeExerciseFromLibrary(item);
+      if(isExerciseCompatible(ex,profile))items.push(ex);
+    }
   }
   const focusAdds={
-    abs:["Abdomen","Pallof press"],pecho:["Pecho",EXERCISE_LIBRARY.Pecho?.[0]?.name],espalda:["Espalda",EXERCISE_LIBRARY.Espalda?.[0]?.name],
+    abs:["Abdomen","Pallof press"],
+    pecho:["Pecho",EXERCISE_LIBRARY.Pecho?.[0]?.name],
+    espalda:["Espalda",EXERCISE_LIBRARY.Espalda?.[0]?.name],
     "pierna-anterior":["Pierna anterior",EXERCISE_LIBRARY["Pierna anterior"]?.[0]?.name],
     "pierna-posterior":["Pierna posterior/glúteo",EXERCISE_LIBRARY["Pierna posterior/glúteo"]?.[0]?.name]
   };
   if(focusAdds[focus]){
     const [g,n]=focusAdds[focus],item=(EXERCISE_LIBRARY[g]||[]).find(x=>x.name===n)||EXERCISE_LIBRARY[g]?.[0];
-    if(item)items.push(makeExerciseFromLibrary(item));
+    if(item){
+      const ex=makeExerciseFromLibrary(item);
+      if(isExerciseCompatible(ex,profile))items.push(ex);
+    }
   }
-  if(focus==="brazos"){items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Bíceps[0]));items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Tríceps[0]));}
+  if(focus==="brazos"){
+    [EXERCISE_LIBRARY.Bíceps?.[0],EXERCISE_LIBRARY.Tríceps?.[0]].forEach(item=>{
+      if(item){
+        const ex=makeExerciseFromLibrary(item);
+        if(isExerciseCompatible(ex,profile))items.push(ex);
+      }
+    });
+  }
   const maxByTime={"30 min":4,"45-60 min":6,"60-75 min":7,"75-90 min":8},maxExercises=maxByTime[profile.time]||8;
-  return items.filter((e,i,a)=>a.findIndex(x=>x.name===e.name&&x.group===e.group)===i).slice(0,maxExercises).map(e=>{
+  const unique=items.filter((e,i,a)=>a.findIndex(x=>x.name===e.name&&x.group===e.group)===i).slice(0,maxExercises);
+  return unique.map(e=>{
     const currentGoal=context.goal||state.planMeta.goal||"Salud general";
     hydrateExercise(e,{goal:currentGoal,level,weekIndex});
     e.sets=prescriptionSets(e,currentGoal,level,weekIndex);
     e.loadLevel=periodizationForWeek(currentGoal,weekIndex).loadLevel;
     applyLoadToExercise(e,e.loadLevel,{goal:currentGoal,level,weekIndex});
-    e.weekIndex=weekIndex;e.planGoal=currentGoal;e.planLevel=level;e.variantBlock=Math.floor(weekIndex/2)+1;e.sourceVariant=sourceType;
+    e.weekIndex=weekIndex;
+    e.planGoal=currentGoal;
+    e.planLevel=level;
+    e.variantBlock=Math.floor(weekIndex/2)+1;
+    e.sourceVariant=sourceType;
     e.restrictionNote=exerciseRestrictionNote(e,profile);
     if(level==="Principiante")e.recommendation=(e.recommendation||"")+" Parte con esfuerzo conservador y prioriza técnica.";
     return e;
