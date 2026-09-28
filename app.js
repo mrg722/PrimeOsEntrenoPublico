@@ -279,7 +279,7 @@ function applyLoadToExercise(e,level,context={}){
 let FALLBACK_ID_SEQ=0;
 function makeExerciseFromLibrary(item){
   const e = {
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()),
+    id: crypto.randomUUID ? crypto.randomUUID() : `ex_${Date.now()}_${++FALLBACK_ID_SEQ}`,
     name:item.name,
     group:item.group,
     equipment:item.equipment,
