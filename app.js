@@ -229,7 +229,7 @@ const defaultState = () => ({schemaVersion:2,
   routine:{},
   sessions:[],
   sessionDrafts:{},
-  ui:{theme:"azul",evidenceVersion:EVIDENCE_VERSION}
+  ui:{theme:"azul",evidenceVersion:EVIDENCE_VERSION,register:{week:"Semana 1",performedDate:"",modality:"3 días",sessionKey:"",editingSessionId:null}}
 });
 
 let state = loadState();
@@ -530,17 +530,65 @@ function renderRoutine(){
   box.querySelectorAll(".remove-exercise").forEach(btn=>btn.addEventListener("click",()=>{const idx=Number(btn.closest(".exercise-row").dataset.index);ensureCurrentDay().exercises.splice(idx,1);saveState();renderAll();}));
 }
 
+
+function localDateISO(){return new Date().toISOString().slice(0,10);}
+function weekdayLabel(dateISO){try{return new Intl.DateTimeFormat("es-CL",{weekday:"long"}).format(new Date(dateISO+"T12:00:00"));}catch(e){return "";}}
+function modalityForDays(days){const n=Number(days);return n===1?"Full Body":n===2?"Full Body":n===3?"3 días":n===4?"4 días":n===5?"5 días":"6 días";}
+function ensureRegistrationState(){
+  state.ui=state.ui||{};state.ui.register=state.ui.register||{};
+  const r=state.ui.register;
+  r.week=state.weeks.includes(r.week)?r.week:(state.selectedWeek||state.weeks[0]||"Semana 1");
+  if(!r.performedDate)r.performedDate=localDateISO();
+  r.modality=r.modality||modalityForDays(state.planMeta?.days||3);
+  const days=Object.keys(state.routine[r.week]||{});
+  r.sessionKey=days.includes(r.sessionKey)?r.sessionKey:(days[0]||"Día 1");
+  return r;
+}
+function getRegisterPlan(){
+  const r=ensureRegistrationState();
+  const obj=state.routine[r.week]?.[r.sessionKey]||{title:"Sin rutina",exercises:[]};
+  return {config:r,obj};
+}
+function setRegisterSelection(field,value){
+  const r=ensureRegistrationState();r[field]=value;
+  if(field==="week"){
+    const days=Object.keys(state.routine[value]||{});
+    if(!days.includes(r.sessionKey))r.sessionKey=days[0]||"Día 1";
+  }
+  if(field==="modality"){
+    const days=Object.keys(state.routine[r.week]||{});
+    if(!days.includes(r.sessionKey))r.sessionKey=days[0]||"Día 1";
+  }
+  saveState();renderAll();
+}
+function populateRegisterControls(){
+  const r=ensureRegistrationState();
+  const week=$("#registerWeek"),date=$("#registerPerformedDate"),mod=$("#registerModality"),ses=$("#registerSession"),status=$("#registerContextStatus");
+  if(week)week.innerHTML=state.weeks.map(w=>`<option value="${escapeHtml(w)}" ${w===r.week?"selected":""}>${escapeHtml(w)}</option>`).join("");
+  if(date)date.value=r.performedDate||localDateISO();
+  if(mod)mod.value=r.modality||modalityForDays(state.planMeta?.days||3);
+  if(ses){
+    const days=Object.entries(state.routine[r.week]||{});
+    ses.innerHTML=days.length?days.map(([key,obj])=>`<option value="${escapeHtml(key)}" ${key===r.sessionKey?"selected":""}>${escapeHtml(obj.title||key)} · ${escapeHtml(key)}</option>`).join(""):`<option value="Día 1">Día 1 · sin rutina</option>`;
+  }
+  if(status){
+    status.innerHTML=`<strong>${escapeHtml(weekdayLabel(r.performedDate)||"Día")}</strong> · realizado el ${escapeHtml(r.performedDate)} · planificación: ${escapeHtml(r.sessionKey)}`;
+  }
+}
+
 function draftKey(){
-  return `${state.selectedWeek}__${state.selectedDay}`;
+  const r=ensureRegistrationState();
+  const key=`${r.week}__${r.performedDate}__${r.sessionKey}`;
+  const legacy=`${r.week}__${r.sessionKey}`;
+  if(state.sessionDrafts?.[legacy]&&!state.sessionDrafts?.[key])state.sessionDrafts[key]=JSON.parse(JSON.stringify(state.sessionDrafts[legacy]));
+  return key;
 }
 function getDraft(){
-  const key=draftKey();
-  if(!state.sessionDrafts) state.sessionDrafts={};
-  if(!state.sessionDrafts[key]){
-    state.sessionDrafts[key]={routine:{},extra:[]};
-  }
+  const key=draftKey();if(!state.sessionDrafts)state.sessionDrafts={};
+  if(!state.sessionDrafts[key])state.sessionDrafts[key]={routine:{},extra:[]};
   return state.sessionDrafts[key];
 }
+
 function routineExerciseKey(e, idx){
   return e.id || `${idx}_${e.name}_${e.group}`;
 }
@@ -613,131 +661,107 @@ function updateRegisterDraftButtonText(){
   if(!btn) return;
   btn.textContent="Actualizar cambios";
 }
+
 function renderRegister(){
-  const day=currentDayObj(), box=$("#registerList"); if(!box)return;
+  const plan=getRegisterPlan(),day=plan.obj,box=$("#registerList");if(!box)return;
+  populateRegisterControls();
   const draft=getDraft();
   const top=`<div class="register-actions-top"><button id="addRegisterExerciseBtn" class="ghost">+ Añadir ejercicio a esta sesión</button></div>`;
   const routineRows=(day.exercises||[]).map((e,idx)=>{
     hydrateExercise(e);
-    const key=routineExerciseKey(e, idx);
-    const d=draft.routine[key];
-    const renderExercise=d?.exercise ? d.exercise : e;
-    return libraryCard(renderExercise,idx,"register").replace('class="exercise-row"', `class="exercise-row" data-source="routine" data-key="${escapeHtml(key)}"`).replace('<h4>', '<span class="draft-badge">Rutina base</span><h4>');
+    const key=routineExerciseKey(e,idx),d=draft.routine[key],renderExercise=d?.exercise?d.exercise:e;
+    return libraryCard(renderExercise,idx,"register").replace('class="exercise-row"',`class="exercise-row" data-source="routine" data-key="${escapeHtml(key)}"`).replace('<h4>','<span class="draft-badge">Rutina base</span><h4>');
   }).join("");
-
-  const extraRows=(draft.extra||[]).map((item,idx)=>{
-    const e=item.exercise || defaultExercise("Pecho");
-    return libraryCard(e,idx,"register").replace('class="exercise-row"', 'class="exercise-row extra-session" data-source="extra"').replace('<h4>', '<span class="draft-badge">Extra de sesión</span><h4>');
-  }).join("");
-
-  if(!(day.exercises||[]).length && !(draft.extra||[]).length){
-    box.innerHTML=top+'<div class="warning card"><strong>Sin rutina para este día.</strong> Puedes añadir un ejercicio manual o generar/importar una rutina.</div>';
-  }else{
-    box.innerHTML=top+routineRows+extraRows;
-  }
-
-  // Restaurar datos escritos en series y notas
+  const extraRows=(draft.extra||[]).map((item,idx)=>{const e=item.exercise||defaultExercise("Pecho");return libraryCard(e,idx,"register").replace('class="exercise-row"','class="exercise-row extra-session" data-source="extra"').replace('<h4>','<span class="draft-badge">Extra de sesión</span><h4>');}).join("");
+  if(!(day.exercises||[]).length&&!(draft.extra||[]).length)box.innerHTML=top+'<div class="warning card"><strong>Sin rutina para este entrenamiento.</strong> Puedes añadir un ejercicio manual o revisar la planificación seleccionada.</div>';else box.innerHTML=top+routineRows+extraRows;
   $$("#registerList .exercise-row").forEach(row=>{
-    const source=row.dataset.source || "routine";
-    const idx=Number(row.dataset.index);
-    let saved=null;
-    if(source==="extra") saved=draft.extra?.[idx] || null;
-    else saved=draft.routine?.[row.dataset.key] || null;
-
-    if(saved?.sets){
-      row.querySelectorAll(".set-line").forEach((line,i)=>applyDraftToSetLine(line, saved.sets[i]));
-    }
-    if(saved?.notes && row.querySelector('[data-field="sessionNotes"]')){
-      row.querySelector('[data-field="sessionNotes"]').value=saved.notes;
-    }
+    const source=row.dataset.source||"routine",idx=Number(row.dataset.index),saved=source==="extra"?(draft.extra?.[idx]||null):(draft.routine?.[row.dataset.key]||null);
+    if(saved?.sets)row.querySelectorAll(".set-line").forEach((line,i)=>applyDraftToSetLine(line,saved.sets[i]));
+    if(saved?.notes&&row.querySelector('[data-field="sessionNotes"]'))row.querySelector('[data-field="sessionNotes"]').value=saved.notes;
   });
-
   $("#addRegisterExerciseBtn")?.addEventListener("click",()=>addExercise(true));
   attachLibraryEvents(box,"register");
-
-  // Cada tipeo se guarda como borrador para no perderlo al cambiar pestaña
-  box.querySelectorAll("input,select,textarea").forEach(el=>{
-    el.addEventListener("input", collectRegisterDraft);
-    el.addEventListener("change", collectRegisterDraft);
-  });
-
+  box.querySelectorAll("input,select,textarea").forEach(el=>{el.addEventListener("input",collectRegisterDraft);el.addEventListener("change",collectRegisterDraft);});
   box.querySelectorAll(".remove-register-exercise").forEach(btn=>btn.addEventListener("click",()=>{
-    collectRegisterDraft();
-    const row=btn.closest(".exercise-row");
-    const source=row.dataset.source || "routine";
-    const idx=Number(row.dataset.index);
-    const draft=getDraft();
-    if(source==="extra"){
-      draft.extra.splice(idx,1);
-    }else{
-      // Quitar solo del registro actual, no de la rutina ni del objetivo
-      const key=row.dataset.key;
-      if(!draft.routine[key]) draft.routine[key]={exercise:currentDayObj().exercises[idx],sets:[],notes:""};
-      draft.routine[key].removed=true;
-      // Para no borrar objetivo, solo limpiar los sets de ese ejercicio en esta sesión
-      draft.routine[key].sets=[];
-    }
-    saveState();
-    renderAll();
+    collectRegisterDraft();const row=btn.closest(".exercise-row"),source=row.dataset.source||"routine",idx=Number(row.dataset.index),draft=getDraft();
+    if(source==="extra")draft.extra.splice(idx,1);else{const key=row.dataset.key;if(!draft.routine[key])draft.routine[key]={exercise:day.exercises[idx],sets:[],notes:""};draft.routine[key].removed=true;draft.routine[key].sets=[];}
+    saveState();renderAll();
   }));
-
-  // Ocultar visualmente ejercicios base marcados como removidos del registro actual
-  $$("#registerList .exercise-row[data-source='routine']").forEach(row=>{
-    const saved=getDraft().routine?.[row.dataset.key];
-    if(saved?.removed) row.remove();
-  });
+  $$("#registerList .exercise-row[data-source='routine']").forEach(row=>{if(getDraft().routine?.[row.dataset.key]?.removed)row.remove();});
 }
+
+
+function buildExerciseSnapshot(ex){return JSON.parse(JSON.stringify({name:ex.name,group:ex.group,equipment:ex.equipment,objective:ex.objective,how:ex.how,recommendation:ex.recommendation,note:ex.note,sets:ex.sets,reps:ex.reps,rest:ex.rest,loadLevel:ex.loadLevel,targetRir:ex.targetRir,suggestedReps:ex.suggestedReps,suggestedRest:ex.suggestedRest}));}
 function saveSession(){
   collectRegisterDraft();
-  const draft=getDraft();
-  const day=currentDayObj();
-  const exercises=[];
-
+  const plan=getRegisterPlan(),day=plan.obj,r=plan.config,draft=getDraft(),exercises=[];
   (day.exercises||[]).forEach((base,idx)=>{
-    const key=routineExerciseKey(base, idx);
-    const saved=draft.routine[key];
-    if(saved?.removed) return;
-    const ex=saved?.exercise || base;
-    const sets=(saved?.sets || []).map(s=>({...s}));
-    exercises.push({
-      name:ex.name,
-      group:ex.group,
-      target:`${ex.sets} x ${ex.reps}`,
-      notes:saved?.notes || "",
-      sets
-    });
+    const key=routineExerciseKey(base,idx),saved=draft.routine[key];if(saved?.removed)return;
+    const ex=saved?.exercise||base,sets=(saved?.sets||[]).map(s=>({...s}));
+    exercises.push({name:ex.name,group:ex.group,target:`${ex.sets} x ${ex.reps}`,notes:saved?.notes||"",sets,exerciseSnapshot:buildExerciseSnapshot(ex)});
   });
+  (draft.extra||[]).forEach(item=>{const ex=item.exercise||defaultExercise("Pecho");exercises.push({name:ex.name,group:ex.group,target:`Extra sesión · ${ex.sets} x ${ex.reps}`,notes:item.notes||"",sets:(item.sets||[]).map(s=>({...s})),extra:true,exerciseSnapshot:buildExerciseSnapshot(ex)});});
 
-  (draft.extra||[]).forEach(item=>{
-    const ex=item.exercise || defaultExercise("Pecho");
-    exercises.push({
-      name:ex.name,
-      group:ex.group,
-      target:`Extra sesión · ${ex.sets} x ${ex.reps}`,
-      notes:item.notes || "",
-      sets:(item.sets || []).map(s=>({...s})),
-      extra:true
-    });
-  });
-
-  const existingIndex=state.sessions.findIndex(s=>s.week===state.selectedWeek && s.day===state.selectedDay && s.draftKey===draftKey());
+  const duplicateIndex=state.sessions.findIndex(s=>s.week===r.week&&s.performedDate===r.performedDate);
+  const editingIndex=r.editingSessionId?state.sessions.findIndex(s=>s.id===r.editingSessionId):-1;
+  if(duplicateIndex>=0&&editingIndex<0){
+    const existing=state.sessions[duplicateIndex];
+    const answer=confirm(`Ya existe un registro para ${r.week} el ${r.performedDate}. ¿Abrir ese registro para editarlo?`);
+    if(answer){openSessionForEdit(existing.id);}
+    return;
+  }
+  const useIndex=editingIndex>=0?editingIndex:duplicateIndex;
+  const id=useIndex>=0?state.sessions[useIndex].id:Date.now();
   const sessionPayload={
-    id: existingIndex>=0 ? state.sessions[existingIndex].id : Date.now(),
-    draftKey:draftKey(),
-    date:new Date().toLocaleString("es-CL"),
-    week:state.selectedWeek,
-    day:state.selectedDay,
-    title:day.title,
-    exercises
+    id,draftKey:draftKey(),date:new Date().toLocaleString("es-CL"),performedDate:r.performedDate,performedDay:weekdayLabel(r.performedDate),
+    week:r.week,weekId:r.week,day:r.sessionKey,plannedDay:r.sessionKey,title:day.title,modality:r.modality,sessionKey:r.sessionKey,exercises
   };
-
-  if(existingIndex>=0) state.sessions[existingIndex]=sessionPayload;
-  else state.sessions.unshift(sessionPayload);
-
-  saveState();
-  alert(existingIndex>=0 ? "Sesión actualizada. Los datos permanecen en pantalla." : "Sesión guardada. Los datos permanecen en pantalla por si necesitas actualizar.");
-  renderAll();
+  if(useIndex>=0)state.sessions[useIndex]=sessionPayload;else state.sessions.unshift(sessionPayload);
+  state.ui.register.editingSessionId=null;
+  saveState();alert(useIndex>=0?"Sesión actualizada.":"Sesión guardada.");renderAll();
 }
+function loadSessionDraft(session){
+  const plan=state.routine[session.week]?.[session.sessionKey||session.day]||{exercises:[]};
+  const draft={routine:{},extra:[]};
+  (session.exercises||[]).forEach(item=>{
+    const ex=item.exerciseSnapshot||{name:item.name,group:item.group,sets:Math.max(1,item.sets?.length||3),reps:"10-12",rest:"90 s",loadLevel:"Moderado",targetRir:"—"};
+    const idx=(plan.exercises||[]).findIndex(e=>e.name===item.name&&e.group===item.group);
+    const payload={exercise:ex,sets:(item.sets||[]).map(s=>({...s})),notes:item.notes||""};
+    if(item.extra||idx<0)draft.extra.push(payload);else draft.routine[routineExerciseKey(plan.exercises[idx],idx)]=payload;
+  });
+  state.sessionDrafts[draftKey()]=draft;
+}
+function openSessionForEdit(id){
+  const session=state.sessions.find(s=>s.id===id);if(!session)return;
+  const r=ensureRegistrationState();r.week=session.week;r.performedDate=session.performedDate||localDateISO();r.modality=session.modality||modalityForDays(state.planMeta?.days||3);r.sessionKey=session.sessionKey||session.day;r.editingSessionId=session.id;
+  loadSessionDraft(session);saveState();go("registrar");renderAll();
+}
+function exportSessionExcel(session){
+  const wb=XLSX.utils.book_new(),rows=[];
+  (session.exercises||[]).forEach(e=>(e.sets||[]).forEach((s,i)=>rows.push({SesionID:session.id,Fecha:session.date,FechaRealizada:session.performedDate,DiaRealizado:session.performedDay,Semana:session.week,DiaPlanificado:session.plannedDay,Modalidad:session.modality,Sesion:session.title,Ejercicio:e.name,Grupo:e.group,Serie:i+1,Peso:s.weight,Reps:s.reps,RIR:s.rir,Dolor:s.pain,Hecha:s.done?"Sí":"No",Observaciones:e.notes||""})));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Sesion");XLSX.writeFile(wb,`Prime_OS_${session.week}_${session.performedDate||"registro"}.xlsx`);
+}
+function exportSessionWord(session){
+  const rows=(session.exercises||[]).map(e=>`<h3>${escapeHtml(e.name)}</h3><p>${escapeHtml(e.group)} · ${escapeHtml(e.target||"")}</p><table><tr><th>Serie</th><th>Peso</th><th>Reps</th><th>RIR</th><th>Dolor</th><th>Hecha</th></tr>${(e.sets||[]).map((s,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(s.weight)}</td><td>${escapeHtml(s.reps)}</td><td>${escapeHtml(s.rir)}</td><td>${escapeHtml(s.pain)}</td><td>${s.done?"Sí":"No"}</td></tr>`).join("")}</table><p>${escapeHtml(e.notes||"")}</p>`).join("");
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Prime OS · Sesión</title><style>body{font-family:Arial;color:#111;line-height:1.4}table{border-collapse:collapse;width:100%;margin:8px 0 18px}th,td{border:1px solid #ccc;padding:6px;text-align:left}</style></head><body><h1>Prime OS · Sesión</h1><p><strong>Semana:</strong> ${escapeHtml(session.week)} · <strong>Día realizado:</strong> ${escapeHtml(session.performedDate||session.date)} · <strong>Sesión:</strong> ${escapeHtml(session.title)}</p>${rows}</body></html>`;
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff",html],{type:"application/msword"}));a.download=`Prime_OS_${session.week}_${session.performedDate||"sesion"}.doc`;a.click();URL.revokeObjectURL(a.href);
+}
+function exportWeekExcel(week){
+  const sessions=state.sessions.filter(s=>s.week===week),rows=[];sessions.forEach(session=>(session.exercises||[]).forEach(e=>(e.sets||[]).forEach((s,i)=>rows.push({SesionID:session.id,Fecha:session.date,FechaRealizada:session.performedDate,DiaRealizado:session.performedDay,Semana:session.week,DiaPlanificado:session.plannedDay,Modalidad:session.modality,Sesion:session.title,Ejercicio:e.name,Grupo:e.group,Serie:i+1,Peso:s.weight,Reps:s.reps,RIR:s.rir,Dolor:s.pain,Hecha:s.done?"Sí":"No",Observaciones:e.notes||""}))));
+  const wb=XLSX.utils.book_new();
+  const planRows=[];Object.entries(state.routine[week]||{}).forEach(([day,obj])=>(obj.exercises||[]).forEach(e=>planRows.push({Semana:week,Día:day,Sesión:obj.title,Ejercicio:e.name,Grupo:e.group,Series:e.sets,Reps:e.reps,Descanso:e.rest,RIR_objetivo:e.targetRir||""})));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([{Semana:week,Sesiones:sessions.length,VolumenCarga:volumeSummary(week).loadVolume}]),"Resumen");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(planRows),"Planificacion");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Sesiones");
+  XLSX.writeFile(wb,`Prime_OS_${week}_semanal.xlsx`);
+}
+function exportWeekWord(week){
+  const sessions=state.sessions.filter(s=>s.week===week),v=volumeSummary(week);
+  const body=sessions.map(s=>`<h2>${escapeHtml(s.performedDate||s.date)} · ${escapeHtml(s.title)}</h2><p>${escapeHtml(s.modality||"")} · ${escapeHtml(s.performedDay||"")}</p><ul>${(s.exercises||[]).map(e=>`<li><strong>${escapeHtml(e.name)}</strong> — ${escapeHtml(e.target||"")} — ${(e.sets||[]).filter(x=>x.done).length} series realizadas</li>`).join("")}</ul>`).join("");
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Prime OS · ${escapeHtml(week)}</title></head><body><h1>Prime OS · ${escapeHtml(week)}</h1><p>Sesiones: ${sessions.length} · Volumen de carga registrado: ${Math.round(v.loadVolume)}</p>${body||"<p>No hay sesiones registradas.</p>"}</body></html>`;
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff",html],{type:"application/msword"}));a.download=`Prime_OS_${week}_semanal.doc`;a.click();URL.revokeObjectURL(a.href);
+}
+
 function targetSeries(scope){
   const targets={}; MUSCLES.forEach(m=>targets[m]=0);
   const weekData=state.routine[state.selectedWeek]||{};
@@ -764,34 +788,43 @@ function progressClass(pct){
   if(pct < 80) return "yellow";
   return "green";
 }
+
+function estimate1RM(weight,reps){const w=Number(weight),r=Number(reps);if(!Number.isFinite(w)||w<=0||!Number.isFinite(r)||r<=0||r>30)return null;return w*(1+r/30);}
+function performanceSummary(scope,week){
+  const sessions=state.sessions.filter(s=>(scope==="week"?s.week===week:true));
+  const map={};
+  sessions.forEach(s=>(s.exercises||[]).forEach(e=>(e.sets||[]).forEach(set=>{
+    if(!set.done)return;const w=Number(set.weight),r=Number(set.reps);if(!Number.isFinite(w)||!Number.isFinite(r)||w<=0||r<=0)return;
+    const key=e.name;if(!map[key])map[key]={name:key,maxLoad:0,maxReps:0,bestE1RM:0,volume:0};
+    map[key].maxLoad=Math.max(map[key].maxLoad,w);map[key].maxReps=Math.max(map[key].maxReps,r);map[key].bestE1RM=Math.max(map[key].bestE1RM,estimate1RM(w,r)||0);map[key].volume+=w*r;
+  })));
+  return Object.values(map).sort((a,b)=>b.bestE1RM-a.bestE1RM);
+}
+function volumeSummary(week){
+  const direct={};MUSCLES.forEach(m=>direct[m]=0);let loadVolume=0;
+  state.sessions.filter(s=>s.week===week).forEach(s=>(s.exercises||[]).forEach(e=>(e.sets||[]).forEach(set=>{
+    if(!set.done)return;direct[e.group]=(direct[e.group]||0)+1;const w=Number(set.weight),r=Number(set.reps);if(Number.isFinite(w)&&Number.isFinite(r)&&w>0&&r>0)loadVolume+=w*r;
+  })));
+  return {directSets:direct,loadVolume};
+}
 function renderProgress(){
-  const scope=$("#progressScope")?.value || "week";
-  const targets=targetSeries(scope);
-  const done=doneSeries(scope);
-  const box=$("#progressBars");
-  if(box){
-    const activeMuscles=MUSCLES.filter(m=>(targets[m]||0)>0 || (done[m]||0)>0);
-    box.innerHTML = activeMuscles.length ? activeMuscles.map(m=>{
-      const t=targets[m]||0, d=done[m]||0, pct=t ? Math.min(100, Math.round((d/t)*100)) : 0, cls=progressClass(pct);
-      const label = pct < 40 ? "Bajo" : pct < 80 ? "Moderado" : "Completo";
-      return `<div class="progress-row enhanced">
-        <strong>${m}</strong>
-        <div class="progress-detail">
-          <div class="progress-bar ${cls}"><span style="width:${pct}%"></span></div>
-          <small>${label} · ${pct}% de cumplimiento</small>
-        </div>
-        <span>${d}/${t} series</span>
-      </div>`;
-    }).join("") : `<p class="small-muted">No hay objetivos para esta vista. Genera una rutina o añade ejercicios en Mi rutina.</p>`;
-  }
-  const advice=$("#progressAdvice");
-  if(advice){
-    advice.innerHTML = scope==="day"
-      ? "<strong>Vista por día:</strong><br>Mi rutina define el objetivo del día. Registrar suma las series realizadas. Ejercicios extra del registro suman realizadas, pero no cambian el objetivo."
-      : "<strong>Vista por semana:</strong><br>Crear rutina y Mi rutina definen las series objetivo semanales. Registrar muestra cuántas series reales llevas por grupo muscular.";
-  }
-  const hist=$("#historyList");
-  if(hist) hist.innerHTML=state.sessions.length?state.sessions.map(s=>`<div class="history-card"><strong>${s.date} · ${s.week} · ${s.day} · ${s.title}</strong><span class="small-muted">${s.exercises.length} ejercicios registrados</span></div>`).join(""):"<p class='small-muted'>Aún no hay sesiones guardadas.</p>";
+ const scope=$("#progressScope")?.value||"week",targets=targetSeries(scope),done=doneSeries(scope),box=$("#progressBars");
+ if(box){const activeMuscles=MUSCLES.filter(m=>(targets[m]||0)>0||(done[m]||0)>0);box.innerHTML=activeMuscles.length?activeMuscles.map(m=>{const t=targets[m]||0,d=done[m]||0,pct=t?Math.min(100,Math.round(d/t*100)):0,cls=progressClass(pct),label=pct<40?"Bajo":pct<80?"Moderado":"Completo";return `<div class="progress-row enhanced"><strong>${m}</strong><div class="progress-detail"><div class="progress-bar ${cls}"><span style="width:${pct}%"></span></div><small>${label} · ${pct}% de cumplimiento</small></div><span>${d}/${t} series</span></div>`;}).join(""):`<p class="small-muted">No hay objetivos para esta vista. Genera una rutina o añade ejercicios en Mi rutina.</p>`;}
+ const perf=$("#performanceMetrics"),ps=performanceSummary("week",state.selectedWeek);
+ if(perf)perf.innerHTML=ps.length?ps.slice(0,8).map(x=>`<div class="metric-item"><strong>${escapeHtml(x.name)}</strong><span>e1RM estimado: ${Math.round(x.bestE1RM)} · PR carga: ${x.maxLoad} · PR reps: ${x.maxReps}</span></div>`).join(""):"<p class='small-muted'>Aún no hay series válidas para calcular e1RM o PRs.</p>";
+ const vol=$("#volumeMetrics"),v=volumeSummary(state.selectedWeek);
+ if(vol){const active=Object.entries(v.directSets).filter(([g,n])=>n>0);vol.innerHTML=(active.length?active.map(([g,n])=>`<div class="metric-item"><strong>${escapeHtml(g)}</strong><span>${n} series directas registradas</span></div>`).join(""):"<p class='small-muted'>Aún no hay volumen directo registrado.</p>")+(`<div class="metric-item"><strong>Volumen de carga</strong><span>${Math.round(v.loadVolume)} kg·reps registrados</span></div>`);}
+ const advice=$("#progressAdvice");
+ if(advice)advice.innerHTML=scope==="day"?"<strong>Vista por día:</strong><br>El objetivo se compara con la ejecución real. Los ejercicios extra no cambian la rutina maestra.":"<strong>Vista por semana:</strong><br>Cumplimiento y rendimiento son métricas diferentes. e1RM y PRs sólo aparecen con datos reales válidos.";
+ const hist=$("#historyList");
+ if(hist){
+   hist.innerHTML=state.sessions.length?state.sessions.map(s=>`<div class="history-card"><div><strong>${escapeHtml(s.performedDate||s.date)} · ${escapeHtml(s.week)} · ${escapeHtml(s.title)}</strong><span class="small-muted">${escapeHtml(s.performedDay||"")} · ${s.exercises.length} ejercicios · ${escapeHtml(s.modality||"")}</span></div><div class="history-actions"><button class="ghost" data-history-edit="${s.id}">Editar</button><button class="ghost" data-history-xlsx="${s.id}">Excel</button><button class="ghost" data-history-word="${s.id}">Word</button></div></div>`).join(""):"<p class='small-muted'>Aún no hay sesiones guardadas.</p>";
+   hist.querySelectorAll("[data-history-edit]").forEach(b=>b.addEventListener("click",()=>openSessionForEdit(Number(b.dataset.historyEdit))));
+   hist.querySelectorAll("[data-history-xlsx]").forEach(b=>b.addEventListener("click",()=>{const s=state.sessions.find(x=>x.id===Number(b.dataset.historyXlsx));if(s)exportSessionExcel(s);}));
+   hist.querySelectorAll("[data-history-word]").forEach(b=>b.addEventListener("click",()=>{const s=state.sessions.find(x=>x.id===Number(b.dataset.historyWord));if(s)exportSessionWord(s);}));
+ }
+ const weekSel=$("#historyWeek");
+ if(weekSel){weekSel.innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${escapeHtml(w)}</option>`).join("");}
 }
 function addWeek(){const last=state.weeks[state.weeks.length-1],nextNum=Number((last.match(/\d+/)||[state.weeks.length])[0])+1,next=`Semana ${nextNum}`;state.weeks.push(next);state.routine[next]=state.routine[last]?JSON.parse(JSON.stringify(state.routine[last])):{};state.selectedWeek=next;saveState();renderAll();}
 function addExercise(fromRegister=false){
@@ -809,6 +842,17 @@ function addExercise(fromRegister=false){
   saveState();
   renderAll();
 }
+
+function exportBackupJson(){
+  const payload={app:"Prime OS Público",appVersion:"2.0",schemaVersion:2,evidenceVersion:EVIDENCE_VERSION,exportedAt:new Date().toISOString(),profile:state.profile,weeks:state.weeks,selectedWeek:state.selectedWeek,selectedDay:state.selectedDay,planMeta:state.planMeta,routine:state.routine,sessions:state.sessions,sessionDrafts:state.sessionDrafts,ui:state.ui};
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}));a.download="Prime_OS_backup.json";a.click();URL.revokeObjectURL(a.href);
+}
+function validateBackup(data){
+  if(!data||typeof data!=="object")return "El archivo no contiene un objeto JSON válido.";
+  if(!data.routine||!Array.isArray(data.weeks))return "No parece un respaldo válido de Prime OS.";
+  if(data.schemaVersion&&Number(data.schemaVersion)>2)return "El respaldo fue creado con una versión más nueva de Prime OS.";
+  return "";
+}
 function exportExcel(){
   const wb=XLSX.utils.book_new(), routineRows=[], sessionRows=[];
   state.weeks.forEach(week=>Object.entries(state.routine[week]||{}).forEach(([day,obj])=>(obj.exercises||[]).forEach(e=>routineRows.push({Semana:week,Día:day,Tipo:obj.title,Ejercicio:e.name,Grupo:e.group,Series:e.sets,Reps:e.reps,Descanso:e.rest,Aparato:e.equipment||"",Objetivo:e.objective||"",Cómo_hacerlo:e.how||"",Intensidad:e.loadLevel||"Moderado",Guía_carga:e.loadGuide||"",Recomendación:e.recommendation||"",Nota:e.note||""}))));
@@ -820,7 +864,18 @@ function exportExcel(){
   XLSX.writeFile(wb,"Prime_OS_respaldo.xlsx");
 }
 function exportAnamnesisWord(){const errors=validateProfile(); if(errors.length){showValidation(errors);return;} const p=state.profile; const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Anamnesis Prime OS</title><style>body{font-family:Arial,sans-serif;line-height:1.5;color:#111}h1{color:#0b5ed7}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}th{background:#eee}</style></head><body><h1>Anamnesis inicial - Prime OS</h1><p><strong>Fecha:</strong> ${new Date().toLocaleString("es-CL")}</p><table><tr><th>Campo</th><th>Respuesta</th></tr>${[["Nombre",p.name],["Edad",p.age],["Estatura",p.height],["Peso",p.weight],["Correo",p.email],["WhatsApp",p.phone],["Objetivo",p.goal],["Nivel",p.level],["Días disponibles",p.days],["Tiempo por sesión",p.time],["Lugar",p.place],["Énfasis",p.focus],["Salud/antecedentes",(p.health||[]).join(", ")],["Síntomas de alarma",(p.alarms||[]).join(", ")],["Dolor actual",p.painLevel],["Zona de molestia",p.painZone],["Antecedentes médicos",p.medicalHistory],["Lesiones o molestias anteriores",p.injuryHistory],["Ejercicios a evitar",p.avoid],["Notas",p.notes],["Resultado orientativo",p.risk]].map(([a,b])=>`<tr><td>${escapeHtml(a)}</td><td>${escapeHtml(b)}</td></tr>`).join("")}</table><p><em>Este documento no reemplaza evaluación médica, kinesiológica ni nutricional.</em></p></body></html>`; const blob=new Blob(["\ufeff",html],{type:"application/msword"}),a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`Anamnesis_Prime_OS_${(p.name||"cliente").replace(/[^\wáéíóúñÁÉÍÓÚÑ-]+/g,"_")}.doc`; a.click(); URL.revokeObjectURL(a.href);}
-function importFile(file){const status=$("#importStatus"),ext=file.name.split(".").pop().toLowerCase(),reader=new FileReader();reader.onload=e=>{try{if(ext==="json"){const data=JSON.parse(e.target.result);if(data.routine&&data.weeks){state=normalizeImportedState(deepMerge(defaultState(),data));saveState();status.textContent="Rutina personalizada JSON importada correctamente.";renderAll();}else status.textContent="JSON leído, pero no parece respaldo de Prime OS.";}else if(ext==="csv"){importCSV(e.target.result);status.textContent="CSV importado como rutina personalizada.";renderAll();}else if(["xlsx","xls"].includes(ext)){const wb=XLSX.read(e.target.result,{type:"array"}),first=wb.SheetNames[0],rows=XLSX.utils.sheet_to_json(wb.Sheets[first],{defval:""});importRows(rows);status.textContent="Excel importado como rutina personalizada.";renderAll();}}catch(err){status.textContent="Error al importar: "+err.message;}}; if(["xlsx","xls"].includes(ext))reader.readAsArrayBuffer(file);else reader.readAsText(file);}
+function importFile(file){const status=$("#importStatus"),ext=file.name.split(".").pop().toLowerCase(),reader=new FileReader();reader.onload=e=>{try{
+ if(ext==="json"){const data=JSON.parse(e.target.result),err=validateBackup(data);if(err){status.textContent=err;return;}state=normalizeImportedState(deepMerge(defaultState(),data));saveState();status.textContent="Respaldo JSON restaurado correctamente.";renderAll();}
+ else if(ext==="csv"){importCSV(e.target.result);status.textContent="CSV importado como rutina personalizada.";renderAll();}
+ else if(["xlsx","xls"].includes(ext)){const wb=XLSX.read(e.target.result,{type:"array"});importWorkbook(wb);status.textContent="Excel importado correctamente. Se procesaron las hojas disponibles.";renderAll();}
+ }catch(err){status.textContent="Error al importar: "+err.message;}};if(["xlsx","xls"].includes(ext))reader.readAsArrayBuffer(file);else reader.readAsText(file);}
+function importWorkbook(wb){
+ const names=wb.SheetNames||[];
+ const routineSheet=names.includes("Rutina")?"Rutina":names[0];
+ const routineRows=routineSheet?XLSX.utils.sheet_to_json(wb.Sheets[routineSheet],{defval:""}):[];
+ if(routineRows.length)importRows(routineRows);
+ if(names.includes("Formulario")){const rows=XLSX.utils.sheet_to_json(wb.Sheets.Formulario,{defval:""});if(rows[0]){const r=rows[0];state.profile={...state.profile,name:r.Nombre||state.profile.name,age:r.Edad||state.profile.age,height:r.Estatura||state.profile.height,weight:r.Peso||state.profile.weight,email:r.Correo||state.profile.email,phone:r.WhatsApp||state.profile.phone,goal:r.Objetivo||state.profile.goal,level:r.Nivel||state.profile.level,days:r.Días||state.profile.days,time:r.Tiempo||state.profile.time,place:r.Lugar||state.profile.place,focus:r.Énfasis||state.profile.focus};}}
+ if(names.includes("Registros")||names.includes("Sesiones")){const sheet=names.includes("Registros")?"Registros":"Sesiones",rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{defval:""}),grouped={};rows.forEach(r=>{const sid=r.SesionID||r.ID||r.Fecha+"__"+r.Sesion;if(!grouped[sid])grouped[sid]={id:sid,week:r.Semana||"Semana 1",date:r.Fecha||"",performedDate:r.FechaRealizada||"",performedDay:r.DiaRealizado||"",plannedDay:r.DiaPlanificado||r.Día||"Día 1",day:r.DiaPlanificado||r.Día||"Día 1",title:r.Sesion||"Sesión",modality:r.Modalidad||"3 días",sessionKey:r.DiaPlanificado||r.Día||"Día 1",exercises:[]};let ex=grouped[sid].exercises.find(x=>x.name===(r.Ejercicio||"Ejercicio"));if(!ex){ex={name:r.Ejercicio||"Ejercicio",group:r.Grupo||"General",target:"",notes:r.Observaciones||"",sets:[]};grouped[sid].exercises.push(ex);}ex.sets.push({weight:r.Peso||"",reps:r.Reps||"",rir:r.RIR||"",pain:r.Dolor||"",done:r.Hecha==="Sí"||r.Hecha===true});});state.sessions=Object.values(grouped);}}
 function importCSV(text){const lines=text.split(/\r?\n/).filter(Boolean),headers=lines.shift().split(",").map(h=>h.trim());importRows(lines.map(line=>{const vals=line.split(",");return Object.fromEntries(headers.map((h,i)=>[h,vals[i]||""]));}));}
 function importRows(rows){const routine={};rows.forEach(r=>{const week=r.Semana||r.week||"Semana 1",day=r["Día"]||r.Dia||r.day||"Día 1";if(!routine[week])routine[week]={};if(!routine[week][day])routine[week][day]={title:day,exercises:[]};const group=r.Grupo||r.Músculo||r.Musculo||r.group||"General",name=r.Ejercicio||r.exercise||"Ejercicio personalizado";let item=(EXERCISE_LIBRARY[group]||[]).find(e=>e.name===name);let ex=item?makeExerciseFromLibrary(item):makeExerciseFromLibrary({name,group,equipment:r.Aparato||r.Equipo||"Equipo a definir",sets:Number(r.Series||3),reps:r.Reps||"10-12",rest:r.Descanso||"90 s",objective:r.Objetivo||"Ejercicio personalizado.",how:r.Cómo_hacerlo||r.Como||r.how||"Describe cómo se ejecuta.",recommendation:r.Recomendación||r.Nota||""});ex.sets=Number(r.Series||ex.sets);ex.loadLevel=r.Intensidad||r.Peso||ex.loadLevel||"Moderado";applyLoadToExercise(ex, ex.loadLevel);ex.reps=r.Reps||ex.reps;ex.rest=r.Descanso||ex.rest;routine[week][day].exercises.push(ex);});state.routine=routine;state.weeks=Object.keys(routine).length?Object.keys(routine):["Semana 1"];state.selectedWeek=state.weeks[0];state.selectedDay=Object.keys(state.routine[state.selectedWeek]||{})[0]||"Día 1";state.planMeta.generated=true;saveState();}
 function bindControls(){
