@@ -1,6 +1,81 @@
-const STORAGE_KEY = "prime_os_publico_v1_4";
+const STORAGE_KEY = "prime_os_publico_v2_0";
 
 const MUSCLES = ["Pierna anterior","Pierna posterior/glúteo","Gemelos","Pecho","Espalda","Hombro","Bíceps","Tríceps","Abdomen","Cardio/recuperación","General"];
+const EVIDENCE_VERSION="2026-09-28";
+const EVIDENCE_REGISTRY=[
+{source:"ACSM",type:"Position Stand / overview of reviews",year:2026,title:"Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews",id:"PMID 41843416 · DOI 10.1249/MSS.0000000000003897",url:"https://pubmed.ncbi.nlm.nih.gov/41843416/",sourceUrl:"https://acsm.org/resistance-training-guidelines-update-2026/",use:"Marco principal para traducir la síntesis de evidencia sobre entrenamiento de fuerza en adultos sanos a reglas transparentes."},
+{source:"PubMed / Sports Medicine",type:"Meta-regresión 2026",year:2026,title:"The Resistance Training Dose Response: Meta-Regressions Exploring the Effects of Weekly Volume and Frequency on Muscle Hypertrophy and Strength Gains",id:"PMID 41343037 · DOI 10.1007/s40279-025-02344-w",url:"https://pubmed.ncbi.nlm.nih.gov/41343037/",use:"Volumen semanal, frecuencia y rendimientos decrecientes; las series indirectas se modelan como fracción configurable y no como ley universal."},
+{source:"BJSM / PubMed",type:"Systematic review + Bayesian network meta-analysis",year:2023,title:"Resistance training prescription for muscle strength and hypertrophy in healthy adults",id:"PMID 37414459 · DOI 10.1136/bjsports-2023-106807",url:"https://pubmed.ncbi.nlm.nih.gov/37414459/",sourceUrl:"https://bjsm.bmj.com/content/57/18/1211",use:"Sustenta que distintas prescripciones pueden funcionar; cargas altas destacan para fuerza y múltiples series aparecen entre las prescripciones destacadas para hipertrofia."},
+{source:"PubMed / Sports Medicine",type:"Meta-regresiones",year:2024,title:"Exploring the Dose-Response Relationship Between Estimated Resistance Training Proximity to Failure, Strength Gain, and Muscle Hypertrophy",id:"PMID 38970765 · DOI 10.1007/s40279-024-02069-2",url:"https://pubmed.ncbi.nlm.nih.gov/38970765/",use:"RIR como variable central; la relación con fuerza fue débil en los mejores modelos, mientras que acercarse al fallo se relacionó con mayor hipertrofia."},
+{source:"PubMed / Sports Medicine",type:"Systematic review + meta-analysis",year:2023,title:"Influence of Resistance Training Proximity-to-Failure on Skeletal Muscle Hypertrophy",id:"PMID 36334240 · DOI 10.1007/s40279-022-01784-y",url:"https://pubmed.ncbi.nlm.nih.gov/36334240/",use:"Refuerza el uso de proximidad al fallo/RIR sin convertir el fallo muscular en requisito obligatorio."},
+{source:"PubMed / J Sport Health Sci",type:"Systematic review + meta-analysis",year:2022,title:"Effects of resistance training performed to repetition failure or non-failure on muscular strength and hypertrophy",id:"PMID 33497853 · DOI 10.1016/j.jshs.2021.01.007",url:"https://pubmed.ncbi.nlm.nih.gov/33497853/",use:"No muestra una superioridad clara del fallo frente al no-fallo para fuerza o hipertrofia; Prime OS mantiene RIR."},
+{source:"PubMed / Front Sports Act Living",type:"Systematic review + Bayesian meta-analysis",year:2024,title:"Give it a rest: a systematic review with Bayesian meta-analysis on the effect of inter-set rest interval duration on muscle hypertrophy",id:"PMID 39205815 · DOI 10.3389/fspor.2024.1429789",url:"https://pubmed.ncbi.nlm.nih.gov/39205815/",use:"El descanso se representa como objetivo adaptable y dependiente del contexto, no como una cifra universal."},
+{source:"PubMed / Sports Medicine",type:"Systematic review + meta-analysis",year:2022,title:"Effects of Periodization on Strength and Muscle Hypertrophy in Volume-Equated Resistance Training Programs",id:"PMID 35044672 · DOI 10.1007/s40279-021-01636-1",url:"https://pubmed.ncbi.nlm.nih.gov/35044672/",use:"Periodización explícita puede aportar ventaja en 1RM cuando el volumen está equiparado; no se usa como afirmación de superioridad universal para hipertrofia."},
+{source:"PubMed / J Strength Cond Res",type:"Systematic review + meta-analysis",year:2024,title:"Efficacy of Split Versus Full-Body Resistance Training on Strength and Muscle Growth",id:"PMID 38595233 · DOI 10.1519/JSC.0000000000004774",url:"https://pubmed.ncbi.nlm.nih.gov/38595233/",use:"Permite seleccionar Full Body o Split según volumen, frecuencia, tiempo, objetivo y preferencias cuando la dosis total es apropiada."},
+{source:"PubMed / J Sports Sci",type:"Systematic review + meta-analysis",year:2021,title:"Influence of resistance training load on measures of skeletal muscle hypertrophy and improvements in maximal strength",id:"PMID 33874848 · DOI 10.1080/02640414.2021.1898094",url:"https://pubmed.ncbi.nlm.nih.gov/33874848/",use:"Las cargas altas favorecen especialmente fuerza máxima; hipertrofia puede lograrse con un espectro amplio de cargas."},
+{source:"PubMed / Eur J Sport Sci",type:"Systematic review + meta-analysis",year:2021,title:"What influence does resistance exercise order have on muscular strength gains and muscle hypertrophy?",id:"PMID 32077380 · DOI 10.1080/17461391.2020.1733672",url:"https://pubmed.ncbi.nlm.nih.gov/32077380/",use:"En fuerza, los ejercicios colocados antes tienden a beneficiarse; por eso los movimientos prioritarios se colocan primero cuando el objetivo es fuerza."},
+{source:"PubMed / Sports Medicine",type:"Umbrella review of meta-analyses",year:2026,title:"Maximizing Adaptations in Concurrent Training: An Umbrella Review of Meta-analyses",id:"PMID 41762427 · DOI 10.1007/s40279-026-02401-y",url:"https://pubmed.ncbi.nlm.nih.gov/41762427/",use:"El cardio se considera de forma contextual junto con modalidad, volumen, intensidad, frecuencia y proximidad entre sesiones."},
+{source:"PubMed / ACSM",type:"Preparticipation screening guidance",year:2015,title:"Updating ACSM's Recommendations for Exercise Preparticipation Health Screening",id:"PMID 26473759",url:"https://pubmed.ncbi.nlm.nih.gov/26473759/",use:"Base para mantener el screening como orientación sobre actividad actual, síntomas, enfermedad conocida e intensidad prevista; no constituye autorización médica."}
+];
+const EVIDENCE_DATABASES=[
+{name:"PubMed / MEDLINE",url:"https://pubmed.ncbi.nlm.nih.gov/",role:"Búsqueda principal de literatura biomédica, ensayos, revisiones y meta-análisis."},
+{name:"Cochrane Library",url:"https://www.cochranelibrary.com/",role:"Confirmación y contraste de revisiones sistemáticas cuando existe evidencia Cochrane pertinente."},
+{name:"SPORTDiscus",url:"https://about.ebsco.com/products/research-databases/sportdiscus",role:"Ampliación específica de literatura de ciencias del deporte y medicina deportiva."},
+{name:"PEDro",url:"https://pedro.org.au/",role:"Comprobación de ensayos/revisiones relevantes en fisioterapia y evaluación de calidad metodológica."},
+{name:"Scopus",url:"https://www.scopus.com/",role:"Rastreo de literatura, citas y trabajos relacionados."},
+{name:"Web of Science",url:"https://www.webofscience.com/",role:"Rastreo de literatura y redes de citación con indexación editorial."},
+{name:"ACSM",url:"https://acsm.org/",role:"Position stands y guías profesionales para traducir evidencia a práctica."},
+{name:"NSCA",url:"https://www.nsca.com/about-us/position-statements/",role:"Position statements de fuerza y acondicionamiento."},
+{name:"BJSM",url:"https://bjsm.bmj.com/",role:"Medicina deportiva y síntesis de evidencia."},
+{name:"JOSPT",url:"https://www.jospt.org/",role:"Evidencia aplicada a ejercicio, movimiento, dolor y rehabilitación cuando corresponde."}
+];
+const TRAINING_RULES={
+"Ganar fuerza general":{repRange:[4,8],targetRir:"2",rest:"2-4 min"},
+"Ganar masa muscular":{repRange:[6,15],targetRir:"1-3",rest:"1.5-3 min"},
+"Recomposición corporal":{repRange:[6,15],targetRir:"2-3",rest:"1.5-3 min"},
+"Bajar grasa":{repRange:[6,15],targetRir:"2-3",rest:"1.5-3 min"},
+"Salud general":{repRange:[8,15],targetRir:"3",rest:"1-3 min"},
+"Volver a entrenar":{repRange:[8,15],targetRir:"3-4",rest:"1-3 min"}
+};
+function goalRule(goal){return TRAINING_RULES[goal]||TRAINING_RULES["Salud general"];}
+function rangeText(a,b){return a===b?String(a):a+"-"+b;}
+function evidencePrescription(e,goal,level,loadLevel,weekIndex){
+ const rule=goalRule(goal);
+ if((e.group||"")==="Cardio/recuperación")return{suggestedReps:e.baseReps||e.reps||"20-35 min",suggestedRest:"Suave/moderado",targetRir:"Percepción de esfuerzo cómoda",rationale:"El componente cardiovascular se regula por modalidad, duración e intensidad."};
+ let low=rule.repRange[0],high=rule.repRange[1];
+ if(loadLevel==="Alto"){low=Math.max(3,low-1);high=Math.max(low+1,high-2);}
+ if(loadLevel==="Bajo"){low+=3;high+=5;}
+ if(weekIndex===3&&goal==="Ganar fuerza general"){low=Math.max(3,low-1);high=Math.max(low+1,high-1);}
+ if(weekIndex===4){low+=1;high+=3;}
+ let rir=rule.targetRir;
+ if(weekIndex===3&&["Ganar fuerza general","Ganar masa muscular"].includes(goal))rir="1-2";
+ if(weekIndex>=4)rir=goal==="Volver a entrenar"?"3-4":"3";
+ return{suggestedReps:rangeText(low,high),suggestedRest:loadLevel==="Alto"?(goal==="Ganar fuerza general"?"2.5-4 min":"2-3 min"):rule.rest,targetRir:rir,rationale:goal==="Ganar fuerza general"?"Rango inicial orientado a fuerza; ajusta carga según RIR y rendimiento.":goal==="Ganar masa muscular"?"Rango amplio de hipertrofia con múltiples series y RIR controlable.":"Rango inicial adaptable al objetivo, rendimiento y recuperación."};
+}
+function prescriptionSets(e,goal,level,weekIndex){
+ let sets=Math.max(1,Number(e.sets)||3);
+ if(level==="Principiante")sets=Math.min(sets,3);
+ if(weekIndex===4)sets=Math.max(1,Math.ceil(sets*0.7));
+ if(goal==="Salud general"||goal==="Volver a entrenar")sets=Math.min(sets,3);
+ return sets;
+}
+function isExerciseCompatible(e,profile){
+ const place=profile?.place||"Gimnasio",avoidText=String(profile?.avoid||"").toLowerCase(),name=String(e.name||"").toLowerCase(),equipment=String(e.equipment||"").toLowerCase();
+ const gymOnly=["máquina","polea","smith","hack squat","peck deck","cinta","bicicleta","elíptica"];
+ if(place==="Casa"&&gymOnly.some(x=>equipment.includes(x)))return false;
+ const tokens=avoidText.split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean);
+ if(tokens.some(token=>token.length>=3&&(name.includes(token)||token.includes(name))))return false;
+ return true;
+}
+function exerciseRestrictionNote(e,profile){
+ const zone=String(profile?.painZone||"Ninguna");if(zone==="Ninguna"||Number(profile?.painLevel||0)<=0)return "";
+ const n=String(e.name||"").toLowerCase();
+ if(zone==="Hombro"&&["press","aperturas","fondos","elevación frontal"].some(x=>n.includes(x)))return"Revisar por molestia declarada de hombro y ajustar si aparece dolor.";
+ if(zone==="Rodilla"&&["sentadilla","zancadas","búlgara","prensa","subida al cajón"].some(x=>n.includes(x)))return"Revisar por molestia declarada de rodilla y ajustar rango/carga según tolerancia.";
+ if(zone==="Columna lumbar"&&["peso muerto","remo con mancuerna","rack pull"].some(x=>n.includes(x)))return"Revisar por molestia declarada lumbar y ajustar según tolerancia.";
+ return "";
+}
+
 
 const EXERCISE_LIBRARY = {
   "Pierna anterior": [
@@ -111,31 +186,16 @@ function lib(name, group, equipment, sets, reps, rest, objective, how, recommend
   return {name, group, equipment, sets, reps, rest, baseReps: reps, baseRest: rest, loadLevel: "Moderado", objective, how, recommendation, note: recommendation};
 }
 
-function applyLoadToExercise(e, level){
-  e.loadLevel = level || e.loadLevel || "Moderado";
-  const group = e.group || "General";
-  const isCardio = group === "Cardio/recuperación";
-  const isCore = group === "Abdomen";
-  if(isCardio){
-    e.reps = e.baseReps || e.reps || "20-35 min";
-    e.rest = "Suave";
-    return e;
-  }
-  if(level === "Bajo"){
-    e.reps = isCore ? "15-20 / 30-45 s" : "12-15";
-    e.rest = "45-75 s";
-    e.loadGuide = "Peso bajo: carga liviana, técnica limpia, sensación cómoda. Debe permitir completar todas las reps con margen.";
-  }else if(level === "Alto"){
-    e.reps = isCore ? "8-12 / 20-35 s" : "5-8";
-    e.rest = "120-180 s";
-    e.loadGuide = "Peso alto: carga desafiante, pocas reps y más descanso. Evita usarlo si hay dolor, técnica inestable o fatiga alta.";
-  }else{
-    e.reps = e.baseReps || e.reps || (isCore ? "10-15 / 20-40 s" : "8-12");
-    e.rest = e.baseRest || e.rest || "90 s";
-    e.loadGuide = "Peso moderado: carga que permite cumplir el rango sugerido con buena técnica y 1-3 reps en reserva.";
-  }
-  return e;
+function applyLoadToExercise(e,level,context={}){
+ e.loadLevel=level||e.loadLevel||"Moderado";
+ const p=evidencePrescription(e,context.goal||state?.planMeta?.goal||"Salud general",context.level||state?.planMeta?.level||"Intermedio",e.loadLevel,Number(context.weekIndex??0));
+ e.suggestedReps=p.suggestedReps;e.suggestedRest=p.suggestedRest;e.targetRir=p.targetRir;e.trainingRationale=p.rationale;
+ e.loadGuide=e.loadLevel==="Alto"?"Carga desafiante: prioriza técnica y usa el RIR objetivo.":"Carga liviana/moderada: punto de partida adaptable al objetivo y al contexto.";
+ if(!e.userOverrideReps)e.reps=e.suggestedReps||e.baseReps||e.reps;
+ if(!e.userOverrideRest)e.rest=e.suggestedRest||e.baseRest||e.rest;
+ return e;
 }
+
 function makeExerciseFromLibrary(item){
   const e = {
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()),
@@ -159,7 +219,7 @@ function defaultExercise(group="Pecho"){
   return makeExerciseFromLibrary(EXERCISE_LIBRARY[group]?.[0] || EXERCISE_LIBRARY.General[0]);
 }
 
-const defaultState = () => ({
+const defaultState = () => ({schemaVersion:2,
   profile:{name:"",age:"",height:"",weight:"",email:"",phone:"",goal:"Salud general",level:"Principiante",days:"3",time:"45-60 min",place:"Gimnasio",focus:"general",health:[],alarms:[],painLevel:0,painZone:"Ninguna",avoid:"",medicalHistory:"",injuryHistory:"",notes:"",risk:"Sin evaluar"},
   weeks:["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5"],
   selectedWeek:"Semana 1",
@@ -168,7 +228,7 @@ const defaultState = () => ({
   routine:{},
   sessions:[],
   sessionDrafts:{},
-  ui:{theme:"azul"}
+  ui:{theme:"azul",evidenceVersion:EVIDENCE_VERSION}
 });
 
 let state = loadState();
@@ -190,18 +250,14 @@ function normalizeImportedState(s){
   return s;
 }
 function hydrateExercise(e){
-  const found = (EXERCISE_LIBRARY[e.group]||[]).find(x=>x.name===e.name);
-  if(found){
-    e.equipment=e.equipment||found.equipment; e.objective=e.objective||found.objective; e.how=e.how||found.how; e.recommendation=e.recommendation||found.recommendation; e.note=e.note||found.recommendation;
-    e.baseReps=e.baseReps||found.baseReps||found.reps; e.baseRest=e.baseRest||found.baseRest||found.rest;
-  }else{
-    e.equipment=e.equipment||"Equipo a definir"; e.objective=e.objective||"Ejercicio personalizado."; e.how=e.how||"Describe cómo se ejecuta este ejercicio."; e.recommendation=e.recommendation||e.note||"Edita la recomendación."; e.note=e.note||e.recommendation;
-    e.baseReps=e.baseReps||e.reps||"10-12"; e.baseRest=e.baseRest||e.rest||"90 s";
-  }
-  e.loadLevel=e.loadLevel||"Moderado";
-  applyLoadToExercise(e, e.loadLevel);
-  return e;
+ const found=(EXERCISE_LIBRARY[e.group]||[]).find(x=>x.name===e.name);
+ if(found){e.equipment=e.equipment||found.equipment;e.objective=e.objective||found.objective;e.how=e.how||found.how;e.recommendation=e.recommendation||found.recommendation;e.note=e.note||found.recommendation;e.baseReps=e.baseReps||found.baseReps||found.reps;e.baseRest=e.baseRest||found.baseRest||found.rest;}
+ else{e.equipment=e.equipment||"Equipo a definir";e.objective=e.objective||"Ejercicio personalizado.";e.how=e.how||"Describe cómo se ejecuta este ejercicio.";e.recommendation=e.recommendation||e.note||"Edita la recomendación.";e.note=e.note||e.recommendation;e.baseReps=e.baseReps||e.reps||"10-12";e.baseRest=e.baseRest||e.rest||"90 s";}
+ e.loadLevel=e.loadLevel||"Moderado";
+ applyLoadToExercise(e,e.loadLevel,{goal:state?.planMeta?.goal,level:state?.planMeta?.level,weekIndex:0});
+ return e;
 }
+
 function deepMerge(base,extra){const out={...base,...extra};out.profile={...base.profile,...(extra.profile||{})};out.planMeta={...base.planMeta,...(extra.planMeta||{})};out.ui={...base.ui,...(extra.ui||{})};return out;}
 function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
 
@@ -290,13 +346,26 @@ function setChecks(id,arr){document.querySelectorAll(`#${id} input`).forEach(inp
 function collectProfile(){state.profile={name:$("#clientName").value.trim(),age:$("#clientAge").value,height:$("#clientHeight").value.trim(),weight:$("#clientWeight").value.trim(),email:$("#clientEmail").value.trim(),phone:$("#clientPhone").value.trim(),goal:$("#clientGoal").value,level:$("#clientLevel").value,days:$("#clientDays").value,time:$("#clientTime").value,place:$("#clientPlace").value,focus:$("#clientFocus").value,health:getSelectedChecks("healthChecks"),alarms:getSelectedChecks("alarmChecks"),painLevel:Number($("#painLevel").value||0),painZone:$("#painZone").value,avoid:$("#avoidExercises").value.trim(),medicalHistory:$("#medicalHistory")?.value.trim()||"",injuryHistory:$("#injuryHistory")?.value.trim()||"",notes:$("#clientNotes").value.trim(),risk:"Sin evaluar"}; state.profile.risk=evaluateRisk(state.profile).level; saveState();}
 function fillProfile(){const p=state.profile; $("#clientName").value=p.name||"";$("#clientAge").value=p.age||"";$("#clientHeight").value=p.height||"";$("#clientWeight").value=p.weight||"";$("#clientEmail").value=p.email||"";$("#clientPhone").value=p.phone||"";$("#clientGoal").value=p.goal||"Salud general";$("#clientLevel").value=p.level||"Principiante";$("#clientDays").value=p.days||"3";$("#clientTime").value=p.time||"45-60 min";$("#clientPlace").value=p.place||"Gimnasio";$("#clientFocus").value=p.focus||"general";setChecks("healthChecks",p.health||[]);setChecks("alarmChecks",p.alarms||[]);$("#painLevel").value=p.painLevel||0;$("#painZone").value=p.painZone||"Ninguna";$("#avoidExercises").value=p.avoid||"";if($("#medicalHistory"))$("#medicalHistory").value=p.medicalHistory||"";if($("#injuryHistory"))$("#injuryHistory").value=p.injuryHistory||"";$("#clientNotes").value=p.notes||"";renderScreening();}
 function validateProfile(){collectProfile();const p=state.profile,errors=[]; if(!p.name)errors.push("Nombre"); if(!p.age)errors.push("Edad"); if(!p.weight)errors.push("Peso actual"); if(!p.goal)errors.push("Objetivo principal"); if(!p.level)errors.push("Nivel"); if(!p.days)errors.push("Días disponibles"); if(!p.health?.length)errors.push("Salud y antecedentes"); if(!p.alarms?.length)errors.push("Síntomas de alarma"); return errors;}
-function evaluateRisk(p){const alarms=(p.alarms||[]).filter(x=>x!=="Ninguno"), serious=(p.health||[]).filter(x=>["Enfermedad cardiovascular","Enfermedad renal","Diabetes","Hipertensión","Embarazo/postparto"].includes(x)); if(alarms.length||Number(p.painLevel)>=7)return{level:"Rojo",className:"red",msg:"Se recomienda evaluación profesional antes de entrenamiento intenso. Prioriza movilidad suave, caminata y orientación médica/kinesiológica si corresponde."}; if(serious.length||Number(p.painLevel)>=4)return{level:"Amarillo",className:"yellow",msg:"Comienza suave. Usa RIR 3-4, evita fallo, baja cargas y prioriza técnica. Considera autorización profesional si tienes condiciones médicas."}; return{level:"Verde",className:"green",msg:"Apto para rutina general inicial. Mantén técnica, progresión gradual y evita dolor."};}
+function evaluateRisk(p){
+ const alarms=(p.alarms||[]).filter(x=>x!=="Ninguno"),serious=(p.health||[]).filter(x=>["Enfermedad cardiovascular","Enfermedad renal","Diabetes","Hipertensión","Embarazo/postparto"].includes(x));
+ if(alarms.length||Number(p.painLevel)>=7)return{level:"Rojo",className:"red",msg:"Screening orientativo: se recomienda evaluación profesional antes de entrenamiento intenso. Prime OS no constituye autorización médica."};
+ if(serious.length||Number(p.painLevel)>=4)return{level:"Amarillo",className:"yellow",msg:"Screening orientativo: reduce intensidad, prioriza técnica y considera evaluación profesional según tu condición. Prime OS no sustituye una evaluación clínica."};
+ return{level:"Verde",className:"green",msg:"Screening orientativo: no se identifican señales de alarma en los datos declarados. Esto no constituye autorización médica."};
+}
+
 function renderScreening(){const r=evaluateRisk(state.profile),box=$("#screeningResult"); if(!box)return; box.className="decision "+r.className; box.innerHTML=`<strong>Resultado orientativo: ${r.level}</strong><br>${r.msg}`;}
 function showValidation(errors){const box=$("#screeningResult"); box.className="decision red form-error"; box.innerHTML=`<strong>Faltan datos obligatorios:</strong><ul class="form-error-list">${errors.map(e=>`<li>${e}</li>`).join("")}</ul>`;}
-function renderSplitPreview(){const days=$("#generatorDays")?.value||"3",focus=$("#generatorFocus")?.value||"general",split=splitFor(days,focus),box=$("#splitPreview"); if(!box)return; box.innerHTML=split.map((name,i)=>`<div class="split-day"><h4>Día ${i+1} · ${name}</h4><p>${summaryForSplit(name)}</p></div>`).join("");}
+function renderSplitPreview(){const days=$("#generatorDays")?.value||"3",focus=$("#generatorFocus")?.value||"general",goal=$("#generatorGoal")?.value||"Ganar masa muscular",split=splitFor(days,focus,goal),box=$("#splitPreview"); if(!box)return; box.innerHTML=split.map((name,i)=>`<div class="split-day"><h4>Día ${i+1} · ${name}</h4><p>${summaryForSplit(name)}</p></div>`).join("");}
 function renderSelectors(){ $("#weekSelect").innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${w}</option>`).join(""); const days=Object.keys(state.routine[state.selectedWeek]||{}),list=days.length?days:Array.from({length:state.planMeta.days||3},(_,i)=>`Día ${i+1}`); if(!list.includes(state.selectedDay))state.selectedDay=list[0]||"Día 1"; $("#daySelect").innerHTML=list.map(d=>`<option ${d===state.selectedDay?"selected":""}>${d}</option>`).join("");}
 function currentDayObj(){return state.routine[state.selectedWeek]?.[state.selectedDay]||{title:"Sin rutina",exercises:[]};}
 function ensureCurrentDay(){if(!state.routine[state.selectedWeek])state.routine[state.selectedWeek]={}; if(!state.routine[state.selectedWeek][state.selectedDay])state.routine[state.selectedWeek][state.selectedDay]={title:"Día personalizado",exercises:[]}; return state.routine[state.selectedWeek][state.selectedDay];}
+function renderEvidenceSettings(){
+ const box=$("#evidenceList");
+ if(box)box.innerHTML=EVIDENCE_REGISTRY.map((item,i)=>`<div class="evidence-item"><div class="evidence-head"><strong>${i+1}. ${escapeHtml(item.source)}</strong><span class="evidence-type">${escapeHtml(item.type)} · ${item.year}</span></div><h4>${escapeHtml(item.title)}</h4><p class="small-muted">${escapeHtml(item.id)}</p><p>${escapeHtml(item.use)}</p><div class="evidence-links"><a href="${item.url}" target="_blank" rel="noopener">PubMed / referencia</a>${item.sourceUrl?`<a href="${item.sourceUrl}" target="_blank" rel="noopener">Fuente institucional</a>`:""}</div></div>`).join("");
+ const db=$("#evidenceDatabaseList");
+ if(db)db.innerHTML=EVIDENCE_DATABASES.map(item=>`<div class="database-item"><a href="${item.url}" target="_blank" rel="noopener"><strong>${escapeHtml(item.name)}</strong></a><span>${escapeHtml(item.role)}</span></div>`).join("");
+ const meta=$("#evidenceVersion");if(meta)meta.textContent="Registro de evidencia actualizado: "+EVIDENCE_VERSION;
+}
 function renderHome(){ $("#homePlanTitle").textContent=state.planMeta.generated?`${state.planMeta.goal} · ${state.planMeta.days} días`:"Sin rutina generada"; $("#homeDays").textContent=state.planMeta.generated?state.planMeta.days:"—"; $("#homeLevel").textContent=state.planMeta.generated?state.planMeta.level:"—"; $("#homeGoal").textContent=state.planMeta.generated?state.planMeta.goal:"—"; $("#homeRisk").textContent=state.profile.risk||"Sin evaluar";}
 function exerciseOptions(group, selected){return (EXERCISE_LIBRARY[group]||EXERCISE_LIBRARY.General).map(e=>`<option value="${escapeHtml(e.name)}" ${e.name===selected?"selected":""}>${escapeHtml(e.name)}</option>`).join("");}
 function libraryCard(e,idx,mode="routine"){
@@ -422,7 +491,7 @@ function updateManualFields(container, mode="routine"){
     const idx=Number(row.dataset.index); if(!day.exercises[idx]) return;
     row.querySelectorAll(".manual-fields [data-field]").forEach(el=>{
       const f=el.dataset.field;
-      day.exercises[idx][f]=f==="sets"?Number(el.value||1):el.value;
+      day.exercises[idx][f]=f==="sets"?Number(el.value||1):el.value;if(f==="reps")day.exercises[idx].userOverrideReps=true;if(f==="rest")day.exercises[idx].userOverrideRest=true;
       if(f==="recommendation") day.exercises[idx].note=el.value;
     });
   });
@@ -744,5 +813,5 @@ function bindControls(){
   $("#progressScope")?.addEventListener("change", renderProgress);
   $$("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme); saveState();}));
 }
-function renderAll(){applyTheme(state.ui?.theme||"azul");renderSelectors();fillProfile();renderSplitPreview();renderHome();renderRoutine();renderRegister();renderProgress();}
+function renderAll(){applyTheme(state.ui?.theme||"azul");renderSelectors();fillProfile();renderSplitPreview();renderHome();renderRoutine();renderRegister();renderProgress();renderEvidenceSettings();}
 document.addEventListener("DOMContentLoaded",()=>{bindLaunch();bindNav();bindControls();renderAll();});
