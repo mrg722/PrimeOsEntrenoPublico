@@ -828,8 +828,8 @@ function reconcileGeneratedPlan(){
 function go(view){
   try{ collectRegisterDraft(); updateManualFields($("#routineList"), "routine"); }catch(e){}
   if(view==="registrar")syncRegisterToPlanner();
-  $(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
-  $(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+view));
+  $$(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
+  $$(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+view));
   const top= document.querySelector(".top-actions");
   const showPlannerSelectors=["rutina","progreso"].includes(view);
   top?.classList.toggle("planner-context",showPlannerSelectors);
@@ -1705,7 +1705,7 @@ function bindControls(){
   $("#historyWeekWordBtn")?.addEventListener("click",()=>exportWeekWord($("#historyWeek")?.value||state.selectedWeek));
   $("#backupExportBtn")?.addEventListener("click",exportBackupJson);
   $("#backupRestoreBtn")?.addEventListener("click",()=>$("#importInput")?.click());
-  $("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme);saveState();}));
+  $$("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme);saveState();}));
 }
 function renderAll(){
   state=normalizeStateShape(state);
