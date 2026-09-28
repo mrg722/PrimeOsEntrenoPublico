@@ -405,9 +405,10 @@ function normalizeStateShape(s){
     ?s.ui.generator.weekdaySchedule
     :s.planMeta.weekdaySchedule;
   s.selectedWeek=s.weeks.includes(s.selectedWeek)?s.selectedWeek:s.weeks[0];
-  if(!WEEKDAYS_ES.includes(s.selectedDay)){
+  const availableDays=Object.keys(s.routine?.[s.selectedWeek]||{}).filter(k=>WEEKDAYS_ES.includes(k));
+  if(!WEEKDAYS_ES.includes(s.selectedDay)||((s.planMeta?.generated||availableDays.length)&&!availableDays.includes(s.selectedDay))){
     const schedule=scheduleForPlan(s.planMeta,s.profile);
-    s.selectedDay=WEEKDAYS_ES[schedule[0]]||WEEKDAYS_ES[0];
+    s.selectedDay=availableDays[0]||WEEKDAYS_ES[schedule[0]]||WEEKDAYS_ES[0];
   }
   return s;
 }
