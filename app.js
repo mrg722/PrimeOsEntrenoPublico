@@ -398,7 +398,7 @@ function libraryCard(e,idx,mode="routine"){
   hydrateExercise(e);
   return `<div class="exercise-row" data-index="${idx}">
     <h4>${idx+1}. ${escapeHtml(e.name)}</h4>
-    <div class="exercise-meta"><span class="pill">${escapeHtml(e.group)}</span><span class="pill">Sugerido: ${e.sets} series</span><span class="pill">${escapeHtml(e.reps)}</span><span class="pill">${escapeHtml(e.rest)}</span></div>
+    <div class="exercise-meta"><span class="pill">${escapeHtml(e.group)}</span><span class="pill">Sugerido: ${e.sets} series</span><span class="pill">${escapeHtml(e.reps)}</span><span class="pill">${escapeHtml(e.rest)}</span><span class="pill">RIR objetivo: ${escapeHtml(e.targetRir||"—")}</span></div>
     <div class="library-card">
       <div class="library-grid three">
         <label>Grupo muscular
@@ -419,7 +419,7 @@ function libraryCard(e,idx,mode="routine"){
         <div class="library-info-row"><strong>Aparato</strong><span>${escapeHtml(e.equipment)}</span></div>
         <div class="library-info-row"><strong>Objetivo</strong><span>${escapeHtml(e.objective)}</span></div>
         <div class="library-info-row"><strong>Series / reps</strong><span>${e.sets} series · ${escapeHtml(e.reps)} · descanso ${escapeHtml(e.rest)}</span></div>
-        <div class="library-info-row"><strong>Intensidad</strong><span>${escapeHtml(e.loadGuide || "Peso moderado: carga desafiante pero controlable.")}</span></div>
+        <div class="library-info-row"><strong>RIR objetivo</strong><span>${escapeHtml(e.targetRir||"—")}</span></div><div class="library-info-row"><strong>Intensidad</strong><span>${escapeHtml(e.loadGuide || "Punto de partida adaptable al objetivo y RIR.")}</span></div><div class="library-info-row"><strong>Fundamento del motor</strong><span>${escapeHtml(e.trainingRationale||"Prescripción adaptable según objetivo, carga y contexto.")}</span></div>${e.restrictionNote?`<div class="library-info-row"><strong>Revisión por restricciones</strong><span>${escapeHtml(e.restrictionNote)}</span></div>`:""}
         <div class="library-info-row"><strong>Cómo hacerlo</strong><span>${escapeHtml(e.how)}</span></div>
         <div class="library-info-row"><strong>Recomendación</strong><span>${escapeHtml(e.recommendation)}</span></div>
       </div>
