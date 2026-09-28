@@ -283,7 +283,7 @@ function applyLoadToExercise(e,level,context={}){
 let FALLBACK_ID_SEQ=0;
 function makeExerciseFromLibrary(item){
   const e = {
-    id: crypto.randomUUID ? crypto.randomUUID() : `ex_${Date.now()}_${++FALLBACK_ID_SEQ}`,
+    id: globalThis.crypto&&typeof globalThis.crypto.randomUUID==="function" ? globalThis.crypto.randomUUID() : `ex_${Date.now()}_${++FALLBACK_ID_SEQ}`,
     name:item.name,
     group:item.group,
     equipment:item.equipment,
@@ -322,14 +322,31 @@ APP_READY=true;
 function $(s){return document.querySelector(s);}
 function $$(s){return Array.from(document.querySelectorAll(s));}
 function escapeHtml(s){return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+function normalizeStateShape(s){
+  const base=defaultState();
+  s=s&&typeof s==="object"?s:{};
+  s.profile={...base.profile,...(s.profile&&typeof s.profile==="object"?s.profile:{})};
+  s.planMeta={...base.planMeta,...(s.planMeta&&typeof s.planMeta==="object"?s.planMeta:{})};
+  s.weeks=Array.isArray(s.weeks)&&s.weeks.length?s.weeks:base.weeks.slice();
+  s.routine=s.routine&&typeof s.routine==="object"?s.routine:{};
+  s.sessions=Array.isArray(s.sessions)?s.sessions:[];
+  s.sessionDrafts=s.sessionDrafts&&typeof s.sessionDrafts==="object"?s.sessionDrafts:{};
+  s.ui={...base.ui,...(s.ui&&typeof s.ui==="object"?s.ui:{})};
+  s.ui.register={...base.ui.register,...(s.ui.register&&typeof s.ui.register==="object"?s.ui.register:{})};
+  s.ui.generator={...((base.ui&&base.ui.generator)||{}),...(s.ui.generator&&typeof s.ui.generator==="object"?s.ui.generator:{})};
+  s.selectedWeek=s.weeks.includes(s.selectedWeek)?s.selectedWeek:s.weeks[0];
+  const days=Object.keys(s.routine?.[s.selectedWeek]||{});
+  s.selectedDay=days.includes(s.selectedDay)?s.selectedDay:(days[0]||"Día 1");
+  return s;
+}
 function loadState(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw) return deepMerge(defaultState(),JSON.parse(raw));
+    if(raw)return normalizeStateShape(deepMerge(defaultState(),JSON.parse(raw)));
     const old=localStorage.getItem("prime_os_publico_v1_4") || localStorage.getItem("prime_os_publico_v1_3") || localStorage.getItem("prime_os_publico_v1_2") || localStorage.getItem("prime_os_publico_v1_1") || localStorage.getItem("prime_os_publico_v1");
-    if(old){const migrated=normalizeImportedState(deepMerge(defaultState(),JSON.parse(old)));return migrated;}
-  }catch(e){}
-  return defaultState();
+    if(old)return normalizeStateShape(normalizeImportedState(deepMerge(defaultState(),JSON.parse(old))));
+  }catch(e){console.warn("Prime OS: se restauró un estado local seguro después de un dato inválido.",e);}
+  return normalizeStateShape(defaultState());
 }
 function normalizeImportedState(s){
   Object.values(s.routine||{}).forEach(week=>Object.values(week||{}).forEach(day=>(day.exercises||[]).forEach(e=>hydrateExercise(e,{goal:s.planMeta?.goal,level:s.planMeta?.level,weekIndex:0}))));
@@ -560,7 +577,8 @@ function trainingEngine(days,level,goal,focus,profile,weekIndex,distribution){
   return plan;
 }
 function generateRoutine(days,level,goal,focus,distribution){
-  const n=Number(days),selected=getDistribution(n,distribution);
+  state=normalizeStateShape(state);
+  const n=Math.max(1,Math.min(6,Number(days)||3)),selected=getDistribution(n,distribution);
   if(state.sessions.length&&!confirm("Ya existen sesiones registradas. La regeneración cambiará la planificación actual, pero conservará el historial. ¿Continuar?"))return false;
   const profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
   state.profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
@@ -575,14 +593,21 @@ function generateRoutine(days,level,goal,focus,distribution){
       note:"La literatura respalda variables y principios; la secuencia exacta de seis semanas es una implementación transparente y no una prescripción universal de un solo estudio."
     }
   };
-  state.weeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
-  state.weeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
-  const generatedRoutine=buildGeneratedRoutine(n,level,goal,focus,selected.value,profile,state.weeks);
-  if(!validateGeneratedRoutineObject(generatedRoutine,n,state.weeks)){
+  const generatedWeeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
+  let generatedRoutine;
+  try{
+    generatedRoutine=buildGeneratedRoutine(n,level,goal,focus,selected.value,profile,generatedWeeks);
+  }catch(err){
+    console.error("Prime OS: ENGINE_GENERATION_ERROR",err);
+    alert("Prime OS no pudo completar el motor de generación. El estado anterior se conservó. Detalle: "+(err?.message||"error desconocido"));
+    return false;
+  }
+  if(!validateGeneratedRoutineObject(generatedRoutine,n,generatedWeeks)){
     console.error("Prime OS: generatedRoutine failed structural validation",{days:n,goal,level,focus,distribution:selected.value});
     alert("El generador no pudo completar una rutina válida de 6 semanas. No se guardaron cambios incompletos.");
     return false;
   }
+  state.weeks=generatedWeeks;
   state.routine=generatedRoutine;
   // A new plan is a new planning context: do not leave Registrar attached to an old edited session.
   state.ui=state.ui||{};
@@ -630,17 +655,40 @@ function validateGeneratedRoutineObject(routine,days,weeks){
     });
   });
 }
+function safeFallbackExercise(goal,level,weekIndex,profile){
+  const candidates=[
+    ...(EXERCISE_LIBRARY.General||[]),
+    ...(EXERCISE_LIBRARY["Pierna anterior"]||[]),
+    ...(EXERCISE_LIBRARY.Pecho||[]),
+    ...(EXERCISE_LIBRARY.Espalda||[])
+  ];
+  const item=candidates.find(x=>isExerciseCompatible(makeExerciseFromLibrary(x),profile))||candidates[0];
+  if(!item)return null;
+  const ex=makeExerciseFromLibrary(item);
+  hydrateExercise(ex,{goal,level,weekIndex});
+  ex.sets=prescriptionSets(ex,goal,level,weekIndex);
+  ex.loadLevel=periodizationForWeek(goal,weekIndex).loadLevel;
+  applyLoadToExercise(ex,ex.loadLevel,{goal,level,weekIndex});
+  ex.weekIndex=weekIndex;ex.planGoal=goal;ex.planLevel=level;
+  return ex;
+}
 function buildGeneratedRoutine(days,level,goal,focus,distribution,profile,weeks){
-  const n=Number(days),selected=getDistribution(n,distribution);
-  const list=Array.isArray(weeks)&&weeks.length?weeks:["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
+  const n=Math.max(1,Math.min(6,Number(days)||3)),selected=getDistribution(n,distribution);
+  const list=Array.isArray(weeks)&&weeks.length===6?weeks:["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
   const routine={};
   list.forEach((week,weekIndex)=>{
     const plan=trainingEngine(n,level,goal,focus,profile,weekIndex,selected.value);
+    if(!Array.isArray(plan)||plan.length!==n)throw new Error(`ENGINE_DAY_COUNT:${week}:${plan?.length||0}/${n}`);
     routine[week]={};
     plan.forEach((day,idx)=>{
+      const exercises=Array.isArray(day.exercises)?day.exercises.filter(Boolean):[];
+      if(!exercises.length){
+        const fallback=safeFallbackExercise(goal,level,weekIndex,profile);
+        if(fallback)exercises.push(fallback);
+      }
       routine[week]["Día "+(idx+1)]={
-        title:day.title,
-        exercises:day.exercises,
+        title:day.title||`Sesión ${idx+1}`,
+        exercises,
         phase:periodizationForWeek(goal,weekIndex).phase,
         weekIndex
       };
@@ -678,8 +726,14 @@ function reconcileGeneratedPlan(){
 function go(view){
   try{ collectRegisterDraft(); updateManualFields($("#routineList"), "routine"); }catch(e){}
   if(view==="registrar")syncRegisterToPlanner();
-  $$(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
-  $$(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+view));
+  $(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
+  $(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+view));
+  const top= document.querySelector(".top-actions");
+  const showPlannerSelectors=["rutina","progreso"].includes(view);
+  top?.classList.toggle("planner-context",showPlannerSelectors);
+  $("#weekSelect")?.classList.toggle("context-hidden",!showPlannerSelectors);
+  $("#daySelect")?.classList.toggle("context-hidden",!showPlannerSelectors);
+  $("#addWeekBtn")?.classList.toggle("context-hidden",!(showPlannerSelectors&&!state.planMeta?.generated));
   const titles={inicio:["Inicio","Plataforma pública de entrenamiento inteligente."],formulario:["Formulario inicial","Anamnesis básica para orientar tu rutina."],crear:["Crear rutina","Generador de rutina base según días, objetivo y énfasis."],rutina:["Mi rutina","Revisa y edita tu planificación semanal."],registrar:["Registrar","Anota tu entrenamiento real."],progreso:["Progreso","Revisa series, historial y recomendaciones."],importar:["Importar rutina","Importa rutinas personalizadas preparadas por Martin o una planificación externa."],personalizado:["Personalizado","Solicita una rutina adaptada a ti."],ajustes:["Ajustes","Gestión local de la app."]};
   $("#pageTitle").textContent=titles[view]?.[0]||"Prime OS"; $("#pageSubtitle").textContent=titles[view]?.[1]||""; $("#sidebar")?.classList.remove("open"); document.body.classList.remove("mobile-menu-open"); renderAll();
 }
@@ -939,13 +993,29 @@ function renderRoutine(){
 
 
 function localDateISO(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
-function weekdayLabel(dateISO){try{return new Intl.DateTimeFormat("es-CL",{weekday:"long"}).format(new Date(dateISO+"T12:00:00"));}catch(e){return "";}}
+const WEEKDAYS_ES=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+function weekdayIndex(dateISO){
+  const d=new Date(String(dateISO||"")+"T12:00:00");
+  if(Number.isNaN(d.getTime()))return -1;
+  return (d.getDay()+6)%7;
+}
+function weekdayLabel(dateISO){const i=weekdayIndex(dateISO);return i>=0?WEEKDAYS_ES[i]:"";}
+function dateForWeekday(target,currentISO){
+  const base=new Date(String(currentISO||localDateISO())+"T12:00:00"),current=weekdayIndex(currentISO||localDateISO());
+  if(current<0)return localDateISO();
+  const t=Math.max(0,Math.min(6,Number(target)||0)),delta=(t-current+7)%7;
+  base.setDate(base.getDate()+delta);
+  const p=n=>String(n).padStart(2,"0");
+  return base.getFullYear()+"-"+p(base.getMonth()+1)+"-"+p(base.getDate());
+}
 function modalityForDays(days){const n=Math.max(1,Math.min(6,Number(days)||3));return n===1?"1 día":`${n} días`;}
 function ensureRegistrationState(){
+  state=normalizeStateShape(state);
   state.ui=state.ui||{};state.ui.register=state.ui.register||{};
   const r=state.ui.register,planDays=Number(state.planMeta?.days||state.profile?.days||3);
   r.week=state.weeks.includes(r.week)?r.week:(state.selectedWeek||state.weeks[0]||"Semana 1");
   if(!r.performedDate)r.performedDate=localDateISO();
+  r.weekday=weekdayIndex(r.performedDate)>=0?weekdayIndex(r.performedDate):0;
   r.modality=modalityForDays(planDays);
   const days=Object.keys(state.routine[r.week]||{});
   r.sessionKey=days.includes(r.sessionKey)?r.sessionKey:(days[0]||"Día 1");
@@ -970,9 +1040,10 @@ function setRegisterSelection(field,value){
 }
 function populateRegisterControls(){
   const r=ensureRegistrationState(),planDays=Number(state.planMeta?.days||state.profile?.days||3),dist=distributionLabel(planDays,state.planMeta?.distribution);
-  const week=$("#registerWeek"),date=$("#registerPerformedDate"),mod=$("#registerModality"),ses=$("#registerSession"),status=$("#registerContextStatus");
+  const week=$("#registerWeek"),date=$("#registerPerformedDate"),weekday=$("#registerWeekday"),mod=$("#registerModality"),ses=$("#registerSession"),status=$("#registerContextStatus");
   if(week)week.innerHTML=state.weeks.map(w=>`<option value="${escapeHtml(w)}" ${w===r.week?"selected":""}>${escapeHtml(w)}</option>`).join("");
   if(date)date.value=r.performedDate||localDateISO();
+  if(weekday)weekday.innerHTML=WEEKDAYS_ES.map((name,i)=>`<option value="${i}" ${i===r.weekday?"selected":""}>${name}</option>`).join("");
   if(mod)mod.innerHTML=`<option value="${escapeHtml(modalityForDays(planDays))}" selected>${escapeHtml(modalityForDays(planDays))}</option>`;
   if(ses){
     const days=Object.entries(state.routine[r.week]||{});
@@ -1415,7 +1486,20 @@ function bindControls(){
   $("#importInput").addEventListener("change",e=>{const file=e.target.files?.[0];if(file)importFile(file);});
   $("#progressScope")?.addEventListener("change",renderProgress);
   $("#registerWeek")?.addEventListener("change",e=>{const r=ensureRegistrationState();r.editingSessionId=null;setRegisterSelection("week",e.target.value);});
-  $("#registerPerformedDate")?.addEventListener("change",e=>{const r=ensureRegistrationState(),old=r.performedDate;r.performedDate=e.target.value||localDateISO();if(old!==r.performedDate)r.editingSessionId=null;saveState();renderAll();});
+  $("#registerPerformedDate")?.addEventListener("change",e=>{
+    const r=ensureRegistrationState(),old=r.performedDate;
+    r.performedDate=e.target.value||localDateISO();
+    r.weekday=weekdayIndex(r.performedDate);
+    if(old!==r.performedDate)r.editingSessionId=null;
+    saveState();renderAll();
+  });
+  $("#registerWeekday")?.addEventListener("change",e=>{
+    const r=ensureRegistrationState(),old=r.performedDate;
+    r.weekday=Math.max(0,Math.min(6,Number(e.target.value)||0));
+    r.performedDate=dateForWeekday(r.weekday,r.performedDate);
+    if(old!==r.performedDate)r.editingSessionId=null;
+    saveState();renderAll();
+  });
   $("#registerModality")?.addEventListener("change",e=>{const r=ensureRegistrationState();r.editingSessionId=null;setRegisterSelection("modality",e.target.value);});
   $("#registerSession")?.addEventListener("change",e=>{const r=ensureRegistrationState();r.editingSessionId=null;setRegisterSelection("sessionKey",e.target.value);});
   $("#historyWeek")?.addEventListener("change",e=>{state.selectedWeek=e.target.value;saveState();renderProgress();});
@@ -1426,6 +1510,7 @@ function bindControls(){
   $("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme);saveState();}));
 }
 function renderAll(){
+  state=normalizeStateShape(state);
   ensureGeneratedRoutineIntegrity();
   applyTheme(state.ui?.theme||"azul");
   renderSelectors();
