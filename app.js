@@ -17,6 +17,11 @@ const EVIDENCE_REGISTRY=[
 {source:"PubMed / Eur J Sport Sci",type:"Systematic review + meta-analysis",year:2021,title:"What influence does resistance exercise order have on muscular strength gains and muscle hypertrophy?",id:"PMID 32077380 · DOI 10.1080/17461391.2020.1733672",url:"https://pubmed.ncbi.nlm.nih.gov/32077380/",use:"En fuerza, los ejercicios colocados antes tienden a beneficiarse; por eso los movimientos prioritarios se colocan primero cuando el objetivo es fuerza."},
 {source:"PubMed / Sports Medicine",type:"Umbrella review of meta-analyses",year:2026,title:"Maximizing Adaptations in Concurrent Training: An Umbrella Review of Meta-analyses",id:"PMID 41762427 · DOI 10.1007/s40279-026-02401-y",url:"https://pubmed.ncbi.nlm.nih.gov/41762427/",use:"El cardio se considera de forma contextual junto con modalidad, volumen, intensidad, frecuencia y proximidad entre sesiones."},
 {source:"PubMed / ACSM",type:"Preparticipation screening guidance",year:2015,title:"Updating ACSM's Recommendations for Exercise Preparticipation Health Screening",id:"PMID 26473759",url:"https://pubmed.ncbi.nlm.nih.gov/26473759/",use:"Base para mantener el screening como orientación sobre actividad actual, síntomas, enfermedad conocida e intensidad prevista; no constituye autorización médica."}
+,{source:"PubMed / Sports Medicine",type:"Systematic review + meta-analysis",year:2024,title:"Dose-Response Modelling of Resistance Exercise Across Outcome Domains in Strength and Conditioning: A Meta-analysis",id:"PMCID PMC11239729 · DOI 10.1007/s40279-024-02006-3",url:"https://pmc.ncbi.nlm.nih.gov/articles/PMC11239729/",use:"Modelado de dosis para frecuencia, volumen e intensidad; se usa para reglas no lineales y para evitar saltos rígidos."}
+,{source:"PubMed / Sports Medicine",type:"Systematic review + meta-analysis",year:2022,title:"The Effect of Load and Volume Autoregulation on Muscular Strength and Hypertrophy: A Systematic Review and Meta-Analysis",id:"PMID 35038063",url:"https://pubmed.ncbi.nlm.nih.gov/35038063/",use:"Sustenta la autorregulación de carga y volumen y el ajuste según rendimiento en lugar de porcentajes fijos universales."}
+,{source:"PubMed / Journal of Strength and Conditioning Research",type:"Randomized trial",year:2025,title:"Training volume increases or maintenance based on previous volume: the effects on muscular adaptations in trained males",id:"PMID 39665246",url:"https://pubmed.ncbi.nlm.nih.gov/39665246/",use:"Aporta evidencia experimental para progresar series respecto al volumen previo sin asumir aumentos obligatorios."}
+,{source:"PubMed / Journal of Strength and Conditioning Research",type:"Randomized trial",year:2025,title:"Does increasing the resistance-training volume lead to greater gains? The effects of weekly set progressions on muscular adaptations in females",id:"PMID 39869076",url:"https://pubmed.ncbi.nlm.nih.gov/39869076/",use:"Aporta evidencia experimental sobre progresión de series cada dos semanas frente a mantener volumen."}
+,{source:"PubMed / Sports Medicine",type:"Systematic review + meta-analysis",year:2026,title:"The Influence of Individual Resistance Training Variables on Muscle Strength: A Systematic Review and Meta-analysis",id:"PMCID PMC13457492",url:"https://pmc.ncbi.nlm.nih.gov/articles/PMC13457492/",use:"Comprueba relaciones no lineales y posibles mesetas de volumen/intensidad para fuerza; no se convierte en límites fisiológicos universales."}
 ];
 const EVIDENCE_DATABASES=[
 {name:"PubMed / MEDLINE",url:"https://pubmed.ncbi.nlm.nih.gov/",role:"Búsqueda principal de literatura biomédica, ensayos, revisiones y meta-análisis."},
@@ -43,83 +48,96 @@ const TRAINING_RULES={
 const EVIDENCE_KEYS={
  acsm2026:"PMID 41843416",dose2026:"PMID 41343037",bjsm2023:"PMID 37414459",rir2024:"PMID 38970765",
  failure2023:"PMID 36334240",failure2022:"PMID 33497853",rest2024:"PMID 39205815",periodization2022:"PMID 35044672",
- fullbody2024:"PMID 38595233",load2021:"PMID 33874848",order2021:"PMID 32077380",concurrent2026:"PMID 41762427",screening2015:"PMID 26473759"
+ fullbody2024:"PMID 38595233",load2021:"PMID 33874848",order2021:"PMID 32077380",concurrent2026:"PMID 41762427",screening2015:"PMID 26473759",volumeModel2024:"PMCID PMC11239729",autoregulation2022:"PMID 35038063",setProgression2025:"PMID 39869076",individualDose2026:"PMCID PMC13457492",volumeProgression2025:"PMID 39665246"
 };
-function goalRule(goal){return TRAINING_RULES[goal]||TRAINING_RULES["Salud general"];}
-function evidenceRefText(keys=[]){return (keys||[]).map(k=>EVIDENCE_KEYS[k]||k).join(" · ");}
-function rangeText(a,b){return a===b?String(a):a+"-"+b;}
-function periodizationForWeek(goal,weekIndex){
- const phases=[
-  {phase:"Base",loadLevel:"Moderado",rir:goalRule(goal).targetRir,setFactor:1},
-  {phase:"Progresión",loadLevel:"Moderado",rir:"2",setFactor:1},
-  {phase:"Progresión",loadLevel:"Moderado",rir:goal==="Ganar fuerza general"||goal==="Ganar masa muscular"?"1-2":goalRule(goal).targetRir,setFactor:1},
-  {phase:"Intensificación",loadLevel:goal==="Ganar fuerza general"?"Alto":"Moderado",rir:goal==="Ganar fuerza general"||goal==="Ganar masa muscular"?"1-2":goalRule(goal).targetRir,setFactor:1},
-  {phase:"Reducción de fatiga",loadLevel:"Moderado",rir:goal==="Volver a entrenar"?"3-4":"3",setFactor:.7}
- ];
- return phases[Math.max(0,Math.min(4,Number(weekIndex)||0))];
-}
-function evidencePrescription(e,goal,level,loadLevel,weekIndex){
- const rule=goalRule(goal),phase=periodizationForWeek(goal,weekIndex);
- if((e.group||"")==="Cardio/recuperación")return{suggestedReps:e.baseReps||e.reps||"20-35 min",suggestedRest:"Suave/moderado",targetRir:"Percepción de esfuerzo cómoda",rationale:"El componente cardiovascular se regula por modalidad, duración e intensidad.",evidenceRefs:["concurrent2026"],phase:phase.phase};
- let low=rule.repRange[0],high=rule.repRange[1];
- if(goal==="Ganar fuerza general"){
-  if(weekIndex===1){low=4;high=7;} if(weekIndex===2){low=4;high=6;} if(weekIndex===3){low=3;high=6;} if(weekIndex===4){low=4;high=8;}
- }else if(goal==="Ganar masa muscular"||goal==="Recomposición corporal"){
-  if(weekIndex===1){low=7;high=15;} if(weekIndex===2){low=6;high=12;} if(weekIndex===3){low=6;high=10;} if(weekIndex===4){low=8;high=15;}
- }else{
-  if(weekIndex===1){low=Math.max(low,8);high=Math.min(high,15);} if(weekIndex===2){low=Math.max(low,8);high=Math.min(high,12);} if(weekIndex===3){low=Math.max(low,6);high=Math.min(high,12);} if(weekIndex===4){low=Math.max(low,8);high=Math.min(high,15);}
- }
- if(loadLevel==="Bajo"){low+=2;high+=3;}
- const suggestedRest=(loadLevel==="Alto"||goal==="Ganar fuerza general")?(goal==="Ganar fuerza general"?"2.5-4 min":"2-3 min"):rule.rest;
- const rationale=goal==="Ganar fuerza general"?"Progresión orientada a fuerza: carga, prioridad de movimientos y RIR explícito.":goal==="Ganar masa muscular"?"Progresión orientada a hipertrofia: volumen semanal distribuido, rango amplio de repeticiones y RIR controlable.":"Prescripción adaptable al objetivo, rendimiento y recuperación; no es un mínimo o máximo universal.";
- return{suggestedReps:rangeText(low,high),suggestedRest,targetRir:phase.rir,rationale,evidenceRefs:rule.evidenceRefs,phase:phase.phase};
-}
-function prescriptionSets(e,goal,level,weekIndex){
- let sets=Math.max(1,Number(e.sets)||3); if(level==="Principiante")sets=Math.min(sets,3); if(goal==="Salud general"||goal==="Volver a entrenar")sets=Math.min(sets,3);
- return Math.max(1,Math.round(sets*periodizationForWeek(goal,weekIndex).setFactor));
-}
-function volumeBandForGoal(goal,group){
- const major=new Set(["Pierna anterior","Pierna posterior/glúteo","Pecho","Espalda","Hombro"]),small=new Set(["Bíceps","Tríceps","Gemelos","Abdomen"]);
- if(group==="Cardio/recuperación"||group==="General")return [0,0];
- const bands={
-  "Ganar fuerza general":{major:[8,10],small:[6,8]},"Ganar masa muscular":{major:[10,14],small:[6,10]},
-  "Recomposición corporal":{major:[8,12],small:[6,8]},"Bajar grasa":{major:[8,12],small:[6,8]},
-  "Salud general":{major:[6,10],small:[4,6]},"Volver a entrenar":{major:[6,8],small:[3,6]}
- };
- const p=bands[goal]||bands["Salud general"]; return major.has(group)?p.major:small.has(group)?p.small:[0,0];
-}
-function distributeWeeklySets(plan,goal){
- const groups={};
- plan.forEach(day=>(day.exercises||[]).forEach(e=>{(groups[e.group]||(groups[e.group]=[])).push(e);}));
- Object.entries(groups).forEach(([group,items])=>{
-  const band=volumeBandForGoal(goal,group); if(!band[1])return;
-  const target=Math.round((band[0]+band[1])/2); let remaining=target;
-  items.forEach((e,i)=>{const slots=items.length-i;const sets=Math.max(1,Math.floor(remaining/slots));e.sets=sets;remaining=Math.max(0,remaining-sets);});
- });
- return plan;
-}
 
 function goalRule(goal){return TRAINING_RULES[goal]||TRAINING_RULES["Salud general"];}
 function rangeText(a,b){return a===b?String(a):a+"-"+b;}
+function periodizationForWeek(goal,weekIndex){
+  const g=goalRule(goal),i=Math.max(0,Math.min(5,Number(weekIndex)||0));
+  const phases=[
+    {phase:"Semana 1 · Base",loadLevel:"Moderado",rir:g.targetRir,volumeFactor:1,repRange:[g.repRange[0],g.repRange[1]]},
+    {phase:"Semana 2 · Progresión",loadLevel:"Moderado",rir:"2-3",volumeFactor:1,repRange:[g.repRange[0],g.repRange[1]]},
+    {phase:"Semana 3 · Progresión de dosis",loadLevel:"Moderado",rir:["Ganar fuerza general","Ganar masa muscular"].includes(goal)?"1-2":"2",volumeFactor:1.05,repRange:["Ganar fuerza general"===goal?4:6,"Ganar fuerza general"===goal?6:12]},
+    {phase:"Semana 4 · Intensificación",loadLevel:goal==="Ganar fuerza general"?"Alto":"Moderado",rir:["Ganar fuerza general","Ganar masa muscular"].includes(goal)?"1-2":g.targetRir,volumeFactor:1.05,repRange:["Ganar fuerza general"===goal?3:6,"Ganar fuerza general"===goal?6:10]},
+    {phase:"Semana 5 · Consolidación",loadLevel:"Moderado",rir:["Ganar fuerza general","Ganar masa muscular"].includes(goal)?"1-2":g.targetRir,volumeFactor:1,repRange:["Ganar fuerza general"===goal?4:6,"Ganar fuerza general"===goal?7:12]},
+    {phase:"Semana 6 · Reducción de fatiga",loadLevel:"Moderado",rir:"3-4",volumeFactor:0.65,repRange:[Math.max(6,g.repRange[0]),Math.min(15,g.repRange[1]+2)]}
+  ];
+  return {...phases[i],weekIndex:i,evidenceRefs:["acsm2026","dose2026","bjsm2023","periodization2022","load2021","autoregulation2022","volumeModel2024","individualDose2026","setProgression2025","volumeProgression2025"]};
+}
 function evidencePrescription(e,goal,level,loadLevel,weekIndex){
- const rule=goalRule(goal);
- if((e.group||"")==="Cardio/recuperación")return{suggestedReps:e.baseReps||e.reps||"20-35 min",suggestedRest:"Suave/moderado",targetRir:"Percepción de esfuerzo cómoda",rationale:"El componente cardiovascular se regula por modalidad, duración e intensidad."};
- let low=rule.repRange[0],high=rule.repRange[1];
- if(loadLevel==="Alto"){low=Math.max(3,low-1);high=Math.max(low+1,high-2);}
- if(loadLevel==="Bajo"){low+=3;high+=5;}
- if(weekIndex===3&&goal==="Ganar fuerza general"){low=Math.max(3,low-1);high=Math.max(low+1,high-1);}
- if(weekIndex===4){low+=1;high+=3;}
- let rir=rule.targetRir;
- if(weekIndex===3&&["Ganar fuerza general","Ganar masa muscular"].includes(goal))rir="1-2";
- if(weekIndex>=4)rir=goal==="Volver a entrenar"?"3-4":"3";
- return{suggestedReps:rangeText(low,high),suggestedRest:loadLevel==="Alto"?(goal==="Ganar fuerza general"?"2.5-4 min":"2-3 min"):rule.rest,targetRir:rir,rationale:goal==="Ganar fuerza general"?"Rango inicial orientado a fuerza; ajusta carga según RIR y rendimiento.":goal==="Ganar masa muscular"?"Rango amplio de hipertrofia con múltiples series y RIR controlable.":"Rango inicial adaptable al objetivo, rendimiento y recuperación."};
+  const rule=goalRule(goal),phase=periodizationForWeek(goal,weekIndex);
+  if((e.group||"")==="Cardio/recuperación")return{
+    suggestedReps:e.baseReps||e.reps||"20-35 min",
+    suggestedRest:"Suave/moderado",
+    targetRir:"Percepción de esfuerzo cómoda",
+    rationale:"El cardio se contextualiza junto con modalidad, volumen, intensidad, frecuencia y proximidad con fuerza.",
+    evidenceRefs:["concurrent2026"],phase:phase.phase
+  };
+  let low=phase.repRange[0],high=phase.repRange[1];
+  if(loadLevel==="Bajo"){low=Math.min(high,low+2);high+=2;}
+  if(loadLevel==="Alto"){low=Math.max(3,low-1);}
+  return{
+    suggestedReps:rangeText(low,high),
+    suggestedRest:(loadLevel==="Alto"||goal==="Ganar fuerza general")?(goal==="Ganar fuerza general"?"2.5-4 min":"2-3 min"):rule.rest,
+    targetRir:phase.rir,
+    rationale:goal==="Ganar fuerza general"?"Fuerza: prioridad a carga, orden de movimientos y RIR, sin requerir fallo.":goal==="Ganar masa muscular"?"Hipertrofia: volumen semanal distribuido, múltiples series, rango amplio de cargas y proximidad al fallo controlada.":"Prescripción adaptable al objetivo y al rendimiento real; no es un mínimo o máximo fisiológico universal.",
+    evidenceRefs:Array.from(new Set([...(rule.evidenceRefs||[]),...phase.evidenceRefs])),
+    phase:phase.phase
+  };
 }
 function prescriptionSets(e,goal,level,weekIndex){
- let sets=Math.max(1,Number(e.sets)||3);
- if(level==="Principiante")sets=Math.min(sets,3);
- if(weekIndex===4)sets=Math.max(1,Math.ceil(sets*0.7));
- if(goal==="Salud general"||goal==="Volver a entrenar")sets=Math.min(sets,3);
- return sets;
+  const base=Math.max(1,Number(e.sets)||3),phase=periodizationForWeek(goal,weekIndex);
+  let sets=base;
+  if(level==="Principiante")sets=Math.min(sets,3);
+  if(goal==="Salud general"||goal==="Volver a entrenar")sets=Math.min(sets,3);
+  return Math.max(1,Math.round(sets*phase.volumeFactor));
+}
+const INDIRECT_SET_FACTOR=0.5;
+function volumeBandForGoal(goal,group){
+  const major=new Set(["Pierna anterior","Pierna posterior/glúteo","Pecho","Espalda","Hombro"]);
+  const small=new Set(["Bíceps","Tríceps","Gemelos","Abdomen"]);
+  if(group==="Cardio/recuperación"||group==="General")return [0,0];
+  const bands={
+    "Ganar fuerza general":{major:[8,12],small:[6,8]},
+    "Ganar masa muscular":{major:[10,14],small:[6,10]},
+    "Recomposición corporal":{major:[8,12],small:[6,8]},
+    "Bajar grasa":{major:[8,12],small:[6,8]},
+    "Salud general":{major:[6,10],small:[4,6]},
+    "Volver a entrenar":{major:[6,8],small:[3,6]}
+  };
+  const p=bands[goal]||bands["Salud general"];
+  return major.has(group)?p.major:small.has(group)?p.small:[0,0];
+}
+function exerciseSecondaryGroups(e){
+  const n=String(e.name||"").toLowerCase(),out=[];
+  if(["press banca","press inclinado","press de pecho","fondos","press cerrado"].some(x=>n.includes(x)))out.push(["Tríceps",INDIRECT_SET_FACTOR]);
+  if(["jalón","dominadas","remo","pullover"].some(x=>n.includes(x)))out.push(["Bíceps",INDIRECT_SET_FACTOR]);
+  if(["peso muerto","curl femoral","hip thrust","patada de glúteo"].some(x=>n.includes(x)))out.push(["Pierna anterior",INDIRECT_SET_FACTOR]);
+  if(["prensa","sentadilla","zancadas","búlgara","hack squat","subida al cajón"].some(x=>n.includes(x)))out.push(["Pierna posterior/glúteo",INDIRECT_SET_FACTOR]);
+  return out;
+}
+function calculateEffectiveWeeklySets(plan){
+  const direct={},effective={};
+  plan.forEach(day=>(day.exercises||[]).forEach(e=>{
+    const sets=Math.max(0,Number(e.sets)||0);
+    direct[e.group]=(direct[e.group]||0)+sets;
+    effective[e.group]=(effective[e.group]||0)+sets;
+    exerciseSecondaryGroups(e).forEach(([group,f])=>effective[group]=(effective[group]||0)+sets*f);
+  }));
+  return{direct,effective};
+}
+function distributeWeeklySets(plan,goal){
+  const grouped={};
+  plan.forEach(day=>(day.exercises||[]).forEach(e=>(grouped[e.group]||(grouped[e.group]=[])).push(e)));
+  Object.entries(grouped).forEach(([group,items])=>{
+    const band=volumeBandForGoal(goal,group);if(!band[1])return;
+    const current=items.reduce((s,e)=>s+(Number(e.sets)||0),0),target=Math.round((band[0]+band[1])/2);
+    if(current>=target)return;
+    let remaining=target-current;
+    items.forEach((e,i)=>{if(remaining<=0)return;const add=Math.ceil(remaining/(items.length-i));e.sets=(Number(e.sets)||1)+add;remaining-=add;});
+  });
+  return plan;
 }
 function isExerciseCompatible(e,profile){
  const place=profile?.place||"Gimnasio",avoidText=String(profile?.avoid||"").toLowerCase(),name=String(e.name||"").toLowerCase(),equipment=String(e.equipment||"").toLowerCase();
@@ -283,7 +301,7 @@ function defaultExercise(group="Pecho"){
 
 const defaultState = () => ({schemaVersion:2,
   profile:{name:"",age:"",height:"",weight:"",email:"",phone:"",goal:"Salud general",level:"Principiante",days:"3",time:"45-60 min",place:"Gimnasio",focus:"general",distribution:"full-body-3",health:[],alarms:[],painLevel:0,painZone:"Ninguna",avoid:"",medicalHistory:"",injuryHistory:"",notes:"",risk:"Sin evaluar"},
-  weeks:["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5"],
+  weeks:["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"],
   selectedWeek:"Semana 1",
   selectedDay:"Día 1",
   planMeta:{days:3,level:"Intermedio",goal:"Ganar masa muscular",focus:"general",distribution:"full-body-3",distributionLabel:"Full Body ×3",generated:false},
@@ -349,92 +367,155 @@ function applyTheme(themeName){
 }
 
 
+
 const DISTRIBUTION_POLICIES={
-1:[{value:"full-body-1",label:"Full Body",sessions:["Full Body"],basis:"Una sesión semanal de cuerpo completo para concentrar la dosis disponible."}],
-2:[{value:"full-body-2",label:"Full Body ×2",sessions:["Full Body A","Full Body B"],basis:"Dos exposiciones de cuerpo completo; el trabajo se reparte entre ambas sesiones."}],
-3:[
- {value:"full-body-3",label:"Full Body ×3",sessions:["Full Body A","Full Body B","Full Body C"],basis:"Tres exposiciones globales para repartir el volumen semanal."},
- {value:"full-upper-lower",label:"Full Body + Upper + Lower",sessions:["Full Body A","Upper A","Lower A"],basis:"Una exposición global y una sesión específica de tren superior e inferior."}
-],
-4:[
- {value:"upper-lower-4",label:"Upper / Lower ×2",sessions:["Upper A","Lower A","Upper B","Lower B"],basis:"Dos exposiciones de tren superior e inferior para distribuir el trabajo en cuatro sesiones."},
- {value:"full-full-upper-lower",label:"Full Body + Full Body + Upper + Lower",sessions:["Full Body A","Full Body B","Upper A","Lower A"],basis:"Dos sesiones globales más una específica de tren superior y otra inferior."}
-],
-5:[
- {value:"upper-lower-2-full",label:"Upper / Lower ×2 + Full Body",sessions:["Upper A","Lower A","Upper B","Lower B","Full Body C"],basis:"Cuatro sesiones divididas más una exposición global."},
- {value:"push-pull-legs-full-upper",label:"Push + Pull + Legs + Full Body + Upper",sessions:["Push A","Pull A","Legs A","Full Body C","Upper A"],basis:"Mezcla determinista de patrones para distribuir el trabajo semanal."}
-],
-6:[
- {value:"ppl-2",label:"Push / Pull / Legs ×2",sessions:["Push A","Pull A","Legs A","Push B","Pull B","Legs B"],basis:"Seis sesiones divididas por patrón; no se ofrece Full Body ×6."},
- {value:"upper-lower-3",label:"Upper / Lower ×3",sessions:["Upper A","Lower A","Upper B","Lower B","Upper C","Lower C"],basis:"Tres exposiciones de tren superior e inferior con variantes A/B/C; la estructura se fija explícitamente y no se sortea."}
-]
+  1:[{value:"full-body-1",label:"Full Body",sessions:["Full Body A"],basis:"Una sesión global."}],
+  2:[
+    {value:"full-body-2",label:"Full Body A + Full Body B",sessions:["Full Body A","Full Body B"],basis:"Dos exposiciones globales; variantes A/B."},
+    {value:"upper-lower",label:"Torso + Pierna",sessions:["Upper Focus","Lower Focus"],basis:"Una sesión focal de torso y otra de pierna."},
+    {value:"lower-upper",label:"Pierna + Torso",sessions:["Lower Focus","Upper Focus"],basis:"Misma combinación con el orden invertido."},
+    {value:"upper-upper",label:"Torso + Torso",sessions:["Upper Focus","Upper Focus"],basis:"Repetición permitida; la variante interna cambia de forma determinista entre semanas."},
+    {value:"lower-lower",label:"Pierna + Pierna",sessions:["Lower Focus","Lower Focus"],basis:"Repetición permitida; la variante interna cambia de forma determinista entre semanas."}
+  ],
+  3:[
+    {value:"upper-lower-full",label:"Upper + Lower + Full Body",sessions:["Upper A","Lower A","Full Body C"],basis:"El Full Body aporta una segunda exposición semanal a las grandes regiones."},
+    {value:"full-body-3",label:"Full Body ×3",sessions:["Full Body A","Full Body B","Full Body C"],basis:"Tres exposiciones globales para distribuir la dosis semanal."}
+  ],
+  4:[
+    {value:"upper-lower-4",label:"Upper A + Lower A + Upper B + Lower B",sessions:["Upper A","Lower A","Upper B","Lower B"],basis:"Estructura fija Upper/Lower ×2; dos exposiciones por gran región."}
+  ],
+  5:[
+    {value:"upper-lower-2-full",label:"Upper + Lower ×2 + Full Body",sessions:["Upper A","Lower A","Upper B","Lower B","Full Body C"],basis:"Estructura determinista ampliada."}
+  ],
+  6:[
+    {value:"upper-lower-3",label:"Upper + Lower ×3",sessions:["Upper A","Lower A","Upper B","Lower B","Upper C","Lower C"],basis:"Estructura determinista de tres exposiciones Upper/Lower."}
+  ]
 };
-function distributionOptionsForDays(days){return DISTRIBUTION_POLICIES[Number(days)]||DISTRIBUTION_POLICIES[3];}
+function distributionOptionsForDays(days){return DISTRIBUTION_POLICIES[Number(days)]||DISTRIBUTION_POLICIES[4];}
 function defaultDistributionForDays(days){return distributionOptionsForDays(days)[0].value;}
 function getDistribution(days,value){const opts=distributionOptionsForDays(days);return opts.find(x=>x.value===value)||opts[0];}
 function distributionLabel(days,value){return getDistribution(days,value).label;}
 function splitFor(days,focus="general",goal="Ganar masa muscular",distribution=null){return getDistribution(days,distribution).sessions.slice(0,Number(days));}
 
 function summaryForSplit(name){
-  return {"Full Body":"Pierna, pecho, espalda, glúteo/posterior, hombro y abdomen con volumen distribuido.","Full Body A":"Full Body con prioridad a patrones básicos y distribución equilibrada.","Full Body B":"Full Body con variantes para distribuir el estímulo.","Full Body C":"Full Body con tercera exposición y variantes.","Lower A":"Cuádriceps, posterior/glúteo, gemelos y core.","Lower B":"Posterior/glúteo, cuádriceps, gemelos y core con variantes.","Upper A":"Pecho, espalda, hombros y brazos.","Upper B":"Pecho, espalda, hombros y brazos con variantes.","Upper C":"Pecho, espalda, hombros y brazos con tercera variante.","Push A":"Pecho, hombros y tríceps.","Push B":"Pecho, hombros y tríceps con variantes.","Pull A":"Espalda, deltoide posterior y bíceps.","Pull B":"Espalda, deltoide posterior y bíceps con variantes.","Legs A":"Cuádriceps, posterior/glúteo, gemelos y abdomen.","Legs B":"Pierna completa, gemelos y abdomen con variantes.","Legs C":"Pierna completa, gemelos y abdomen con tercera variante."}[name]||"Rutina base general.";
+  return {
+    "Full Body A":"Cuerpo completo con cobertura global.",
+    "Full Body B":"Cuerpo completo con variante de ejercicios.",
+    "Full Body C":"Cuerpo completo con tercera variante.",
+    "Upper Focus":"Torso: pecho, espalda, hombros y brazos.",
+    "Lower Focus":"Pierna: cuádriceps, posterior/glúteo, gemelos y core.",
+    "Upper A":"Torso A.",
+    "Upper B":"Torso B.",
+    "Upper C":"Torso C.",
+    "Lower A":"Pierna A.",
+    "Lower B":"Pierna B.",
+    "Lower C":"Pierna C."
+  }[name]||"Rutina base general.";
+}
+const PICK_VARIANTS={
+  "Full Body A":[["Pierna anterior","Prensa"],["Pecho","Press de pecho en máquina"],["Espalda","Jalón al pecho"],["Pierna posterior/glúteo","Curl femoral sentado"],["Hombro","Elevaciones laterales"],["Abdomen","Plancha"]],
+  "Full Body B":[["Pierna anterior","Sentadilla goblet"],["Pecho","Press banca"],["Espalda","Remo sentado"],["Pierna posterior/glúteo","Peso muerto rumano"],["Hombro","Pájaros / posterior de hombro"],["Abdomen","Pallof press"]],
+  "Full Body C":[["Pierna anterior","Zancadas"],["Pecho","Press inclinado con mancuernas"],["Espalda","Remo en máquina"],["Pierna posterior/glúteo","Hip thrust"],["Hombro","Elevaciones laterales"],["Abdomen","Crunch"]],
+  "Upper A":[["Pecho","Press banca"],["Espalda","Jalón al pecho"],["Hombro","Press hombro con mancuernas"],["Espalda","Remo sentado"],["Bíceps","Curl bíceps con mancuernas"],["Tríceps","Tríceps en polea"]],
+  "Upper B":[["Pecho","Press inclinado en máquina"],["Espalda","Remo en máquina"],["Hombro","Elevaciones laterales"],["Espalda","Dominadas asistidas"],["Bíceps","Curl martillo"],["Tríceps","Extensión de tríceps con cuerda"],["Hombro","Pájaros / posterior de hombro"]],
+  "Upper C":[["Pecho","Press con mancuernas plano"],["Espalda","Pullover en polea"],["Hombro","Press de hombro en máquina"],["Espalda","Remo pecho apoyado"],["Bíceps","Curl predicador"],["Tríceps","Press cerrado en máquina"],["Hombro","Face pull"]],
+  "Lower A":[["Pierna anterior","Prensa"],["Pierna posterior/glúteo","Peso muerto rumano"],["Pierna anterior","Extensión de piernas"],["Pierna posterior/glúteo","Curl femoral sentado"],["Gemelos","Gemelos de pie"],["Abdomen","Crunch"]],
+  "Lower B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna posterior/glúteo","Curl femoral sentado"],["Pierna anterior","Zancadas"],["Gemelos","Gemelos sentado"],["Abdomen","Dead bug"]],
+  "Lower C":[["Pierna anterior","Hack squat"],["Pierna posterior/glúteo","Peso muerto con mancuernas"],["Pierna anterior","Subida al cajón"],["Pierna posterior/glúteo","Patada de glúteo"],["Gemelos","Gemelos en Smith"],["Abdomen","Elevación de piernas"]]
+};
+const FAMILY_VARIANTS={"Full Body":["Full Body A","Full Body B","Full Body C"],"Upper":["Upper A","Upper B","Upper C"],"Lower":["Lower A","Lower B","Lower C"]};
+function familyOfType(type){return String(type).replace(/\s+[ABC]$/,"").replace(" Focus","");}
+function sourceVariantFor(type,weekIndex){
+  const family=familyOfType(type),vars=FAMILY_VARIANTS[family];
+  if(!vars)return type;
+  const letter=String(type).match(/[ABC]$/)?.[0],offset=letter==="B"?1:letter==="C"?2:0;
+  return vars[(Math.max(0,Number(weekIndex)||0)+offset)%vars.length];
 }
 function exercisesFor(type,level,focus,context={}){
-  const picks={
-    "Full Body":[["Pierna anterior","Prensa"],["Pecho","Press de pecho en máquina"],["Espalda","Jalón al pecho"],["Pierna posterior/glúteo","Curl femoral sentado"],["Hombro","Elevaciones laterales"],["Abdomen","Plancha"]],
-    "Full Body A":[["Pierna anterior","Prensa"],["Pecho","Press de pecho en máquina"],["Espalda","Jalón al pecho"],["Pierna posterior/glúteo","Curl femoral sentado"],["Hombro","Elevaciones laterales"],["Abdomen","Plancha"]],
-    "Full Body B":[["Pierna anterior","Sentadilla goblet"],["Pecho","Press banca"],["Espalda","Remo sentado"],["Pierna posterior/glúteo","Peso muerto rumano"],["Hombro","Pájaros / posterior de hombro"],["Abdomen","Pallof press"]],
-    "Full Body C":[["Pierna anterior","Zancadas"],["Pecho","Press inclinado con mancuernas"],["Espalda","Remo en máquina"],["Pierna posterior/glúteo","Hip thrust"],["Hombro","Elevaciones laterales"],["Abdomen","Crunch"]],
-    "Lower A":[["Pierna anterior","Prensa"],["Pierna posterior/glúteo","Peso muerto rumano"],["Pierna anterior","Extensión de piernas"],["Pierna posterior/glúteo","Curl femoral sentado"],["Gemelos","Gemelos de pie"],["Abdomen","Crunch"]],
-    "Lower B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna posterior/glúteo","Curl femoral sentado"],["Pierna anterior","Zancadas"],["Gemelos","Gemelos sentado"],["Abdomen","Dead bug"]],
-    "Upper A":[["Pecho","Press banca"],["Espalda","Jalón al pecho"],["Hombro","Press hombro con mancuernas"],["Espalda","Remo sentado"],["Bíceps","Curl bíceps con mancuernas"],["Tríceps","Tríceps en polea"]],
-    "Upper B":[["Pecho","Press inclinado en máquina"],["Espalda","Remo en máquina"],["Hombro","Elevaciones laterales"],["Espalda","Dominadas asistidas"],["Bíceps","Curl martillo"],["Tríceps","Extensión de tríceps con cuerda"],["Hombro","Pájaros / posterior de hombro"]],
-    "Upper C":[["Pecho","Press con mancuernas plano"],["Espalda","Pullover en polea"],["Hombro","Press de hombro en máquina"],["Espalda","Remo pecho apoyado"],["Bíceps","Curl predicador"],["Tríceps","Press cerrado en máquina"],["Hombro","Face pull"]],
-    "Push A":[["Pecho","Press banca"],["Pecho","Press inclinado con mancuernas"],["Hombro","Press hombro con mancuernas"],["Hombro","Elevaciones laterales"],["Tríceps","Tríceps en polea"],["Tríceps","Extensión de tríceps con cuerda"]],
-    "Push B":[["Pecho","Press de pecho en máquina"],["Pecho","Aperturas en máquina"],["Hombro","Press de hombro en máquina"],["Hombro","Pájaros / posterior de hombro"],["Tríceps","Fondos asistidos"],["Tríceps","Extensión sobre cabeza"]],
-    "Pull A":[["Espalda","Jalón al pecho"],["Espalda","Remo sentado"],["Espalda","Remo pecho apoyado"],["Espalda","Face pull"],["Bíceps","Curl bíceps con mancuernas"],["Bíceps","Curl martillo"]],
-    "Pull B":[["Espalda","Dominadas asistidas"],["Espalda","Remo en máquina"],["Espalda","Pullover en polea"],["Hombro","Pájaros / posterior de hombro"],["Bíceps","Curl predicador"],["Bíceps","Curl bíceps en polea"]],
-    "Legs A":[["Pierna anterior","Prensa"],["Pierna posterior/glúteo","Peso muerto rumano"],["Pierna anterior","Zancadas"],["Pierna posterior/glúteo","Curl femoral sentado"],["Gemelos","Gemelos de pie"],["Abdomen","Plancha"]],
-    "Legs B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna anterior","Extensión de piernas"],["Pierna posterior/glúteo","Curl femoral acostado"],["Gemelos","Gemelos sentado"],["Abdomen","Pallof press"]],
-    "Legs C":[["Pierna anterior","Hack squat"],["Pierna posterior/glúteo","Peso muerto con mancuernas"],["Pierna anterior","Subida al cajón"],["Pierna posterior/glúteo","Patada de glúteo"],["Gemelos","Gemelos en Smith"],["Abdomen","Elevación de piernas"]]
-  }[type]||[["General","Ejercicio personalizado"]];
-  const profile=context.profile||state.profile||{};const items=[];
-  for(const [g,n] of picks){const item=(EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g]?.[0];if(item){const ex=makeExerciseFromLibrary(item);if(isExerciseCompatible(ex,profile))items.push(ex);}}
-  if(focus==="abs")items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Abdomen.find(e=>e.name==="Pallof press")||EXERCISE_LIBRARY.Abdomen[0]));
-  if(focus==="pecho"&&!type.toLowerCase().includes("push")&&!type.toLowerCase().includes("upper")&&!items.some(e=>e.group==="Pecho"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Pecho[0]));
-  if(focus==="espalda"&&!type.toLowerCase().includes("pull")&&!type.toLowerCase().includes("upper")&&!items.some(e=>e.group==="Espalda"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Espalda[0]));
-  if(focus==="pierna-anterior"&&!items.some(e=>e.group==="Pierna anterior"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY["Pierna anterior"][0]));
-  if(focus==="pierna-posterior"&&!items.some(e=>e.group==="Pierna posterior/glúteo"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY["Pierna posterior/glúteo"][0]));
+  const profile=context.profile||state.profile||{},weekIndex=Number(context.weekIndex||0);
+  // Focused sessions are still part of the same Upper/Lower family and therefore rotate only among curated variants.
+  const sourceType=sourceVariantFor(type,weekIndex);
+  const picks=PICK_VARIANTS[sourceType]||[["General","Ejercicio personalizado"]];
+  const items=[];
+  for(const [g,n] of picks){
+    const item=(EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g]?.[0];
+    if(item){const ex=makeExerciseFromLibrary(item);if(isExerciseCompatible(ex,profile))items.push(ex);}
+  }
+  const focusAdds={
+    abs:["Abdomen","Pallof press"],pecho:["Pecho",EXERCISE_LIBRARY.Pecho?.[0]?.name],espalda:["Espalda",EXERCISE_LIBRARY.Espalda?.[0]?.name],
+    "pierna-anterior":["Pierna anterior",EXERCISE_LIBRARY["Pierna anterior"]?.[0]?.name],
+    "pierna-posterior":["Pierna posterior/glúteo",EXERCISE_LIBRARY["Pierna posterior/glúteo"]?.[0]?.name]
+  };
+  if(focusAdds[focus]){
+    const [g,n]=focusAdds[focus],item=(EXERCISE_LIBRARY[g]||[]).find(x=>x.name===n)||EXERCISE_LIBRARY[g]?.[0];
+    if(item)items.push(makeExerciseFromLibrary(item));
+  }
   if(focus==="brazos"){items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Bíceps[0]));items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Tríceps[0]));}
-  const maxByTime={"30 min":4,"45-60 min":6,"60-75 min":7,"75-90 min":8};const maxExercises=maxByTime[profile.time]||8;
-  return items.filter((e,i,a)=>a.findIndex(x=>x.name===e.name&&x.group===e.group)===i).slice(0,maxExercises).map(e=>{hydrateExercise(e);e.sets=prescriptionSets(e,context.goal||state.planMeta.goal||"Salud general",level,Number(context.weekIndex||0));applyLoadToExercise(e,e.loadLevel||"Moderado",{goal:context.goal||state.planMeta.goal,level,weekIndex:Number(context.weekIndex||0)});e.restrictionNote=exerciseRestrictionNote(e,profile);if(level==="Principiante")e.recommendation=e.recommendation+" Parte con un esfuerzo conservador y prioriza técnica.";return e;});
+  const maxByTime={"30 min":4,"45-60 min":6,"60-75 min":7,"75-90 min":8},maxExercises=maxByTime[profile.time]||8;
+  return items.filter((e,i,a)=>a.findIndex(x=>x.name===e.name&&x.group===e.group)===i).slice(0,maxExercises).map(e=>{
+    const currentGoal=context.goal||state.planMeta.goal||"Salud general";
+    hydrateExercise(e,{goal:currentGoal,level,weekIndex});
+    e.sets=prescriptionSets(e,currentGoal,level,weekIndex);
+    e.loadLevel=periodizationForWeek(currentGoal,weekIndex).loadLevel;
+    applyLoadToExercise(e,e.loadLevel,{goal:currentGoal,level,weekIndex});
+    e.weekIndex=weekIndex;e.planGoal=currentGoal;e.planLevel=level;
+    e.restrictionNote=exerciseRestrictionNote(e,profile);
+    if(level==="Principiante")e.recommendation=(e.recommendation||"")+" Parte con esfuerzo conservador y prioriza técnica.";
+    return e;
+  });
+}
+function performanceSignal(exercise,previousWeekIndex){
+  if(previousWeekIndex<0)return{signal:"Sin datos previos",action:"Establece línea base y registra RIR.",confidence:"baja"};
+  const previous=state.sessions.filter(s=>Number(String(s.week||"").replace(/\D/g,""))===previousWeekIndex+1);
+  const same=previous.flatMap(s=>s.exercises||[]).filter(e=>e.name===exercise.name&&e.group===exercise.group),sets=same.flatMap(e=>e.sets||[]).filter(x=>x.done&&Number(x.reps)>0);
+  if(!sets.length)return{signal:"Sin datos previos",action:"Registra peso, repeticiones y RIR para ajustar la próxima semana.",confidence:"baja"};
+  const rirs=sets.map(x=>Number(x.rir)).filter(Number.isFinite),avgRir=rirs.length?rirs.reduce((a,b)=>a+b,0)/rirs.length:null;
+  if(avgRir!==null&&avgRir<1)return{signal:"Esfuerzo demasiado alto",action:"No aumentes carga; prioriza recuperación y RIR objetivo.",confidence:"media"};
+  if(avgRir!==null&&avgRir>3.5)return{signal:"Esfuerzo demasiado bajo",action:"Considera aumentar carga disponible manteniendo técnica y RIR objetivo.",confidence:"media"};
+  return{signal:"Rendimiento utilizable",action:"Intenta progresar dentro del rango antes de cambiar la estructura.",confidence:"media"};
 }
 function trainingEngine(days,level,goal,focus,profile,weekIndex,distribution){
- const phase=periodizationForWeek(goal,weekIndex),split=splitFor(days,focus,goal,distribution);
- let plan=split.map(type=>({title:type,exercises:exercisesFor(type,level,focus,{goal,level,weekIndex,profile})}));
- plan=distributeWeeklySets(plan,goal);
- plan.forEach(day=>(day.exercises||[]).forEach(e=>{
-  e.weekRole=phase.phase;e.phase=phase.phase;e.weekIndex=weekIndex;e.planGoal=goal;e.planLevel=level;
-  e.periodizationNote=weekIndex===4?"Reducción de fatiga programada; no es una regla universal.":"Variación semanal explícita de carga/repeticiones/RIR para el objetivo seleccionado.";
-  e.loadLevel=phase.loadLevel;
-  e.sets=Math.max(1,Math.round(Number(e.sets||1)*phase.setFactor));
-  applyLoadToExercise(e,e.loadLevel,{goal,level,weekIndex});
- }));
- return plan;
+  const phase=periodizationForWeek(goal,weekIndex),split=splitFor(days,focus,goal,distribution);
+  let plan=split.map(type=>({title:type,exercises:exercisesFor(type,level,focus,{goal,level,weekIndex,profile})}));
+  plan=distributeWeeklySets(plan,goal);
+  const previousWeek=weekIndex-1;
+  plan.forEach(day=>(day.exercises||[]).forEach(e=>{
+    e.weekRole=phase.phase;e.phase=phase.phase;e.weekIndex=weekIndex;e.planGoal=goal;e.planLevel=level;
+    e.periodizationNote=phase.phase;e.evidenceRefs=Array.from(new Set([...(e.evidenceRefs||[]),...phase.evidenceRefs]));
+    e.progression=performanceSignal(e,previousWeek);
+    e.loadGuide=e.progression.confidence==="baja"?"Usa el RIR objetivo y registra la ejecución; la siguiente semana se autorregula.":e.progression.action;
+    applyLoadToExercise(e,e.loadLevel,{goal,level,weekIndex});
+  }));
+  const effective=calculateEffectiveWeeklySets(plan);
+  plan.forEach(day=>(day.exercises||[]).forEach(e=>e.effectiveWeeklyDose=Number((effective.effective[e.group]||0).toFixed(1))));
+  return plan;
 }
 function generateRoutine(days,level,goal,focus,distribution){
- const n=Number(days),selected=getDistribution(n,distribution);
- if(state.sessions.length&&!confirm("Ya existen sesiones registradas. La regeneración cambiará la planificación actual, pero conservará el historial. ¿Continuar?"))return false;
- const profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
- state.profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
- state.planMeta={days:n,level,goal,focus,distribution:selected.value,distributionLabel:selected.label,generated:true,engine:"Evidence Training Engine 2026",evidenceVersion:EVIDENCE_VERSION};
- state.weeks.forEach((week,weekIndex)=>{
-  const plan=trainingEngine(n,level,goal,focus,profile,weekIndex,selected.value);
-  state.routine[week]={};
-  plan.forEach((day,idx)=>{state.routine[week]["Día "+(idx+1)]={title:day.title,exercises:day.exercises};});
- });
- state.selectedWeek="Semana 1";state.selectedDay="Día 1";
- state.ui=state.ui||{};state.ui.generator=state.ui.generator||{};state.ui.generator.distribution=selected.value;
- saveState();return true;
+  const n=Number(days),selected=getDistribution(n,distribution);
+  if(state.sessions.length&&!confirm("Ya existen sesiones registradas. La regeneración cambiará la planificación actual, pero conservará el historial. ¿Continuar?"))return false;
+  const profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
+  state.profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
+  state.planMeta={
+    days:n,level,goal,focus,distribution:selected.value,distributionLabel:selected.label,generated:true,
+    engine:"Evidence Training Engine 2026",evidenceVersion:EVIDENCE_VERSION,programLengthWeeks:6,
+    evidenceModel:{
+      directSetFactor:1,indirectSetFactor:INDIRECT_SET_FACTOR,
+      autoregulation:"RIR + rendimiento registrado",
+      periodization:"6 semanas: Base → Progresión → Progresión de dosis → Intensificación → Consolidación → Reducción de fatiga",
+      structure:"Combinaciones acotadas por días; no se mezclan macroestructuras arbitrariamente.",
+      note:"La literatura respalda variables y principios; la secuencia exacta de seis semanas es una implementación transparente y no una prescripción universal de un solo estudio."
+    }
+  };
+  state.weeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
+  state.routine={};
+  state.weeks.forEach((week,weekIndex)=>{
+    const plan=trainingEngine(n,level,goal,focus,profile,weekIndex,selected.value);
+    state.routine[week]={};
+    plan.forEach((day,idx)=>state.routine[week]["Día "+(idx+1)]={title:day.title,exercises:day.exercises,phase:periodizationForWeek(goal,weekIndex).phase,weekIndex});
+  });
+  state.selectedWeek="Semana 1";state.selectedDay="Día 1";
+  state.ui=state.ui||{};state.ui.generator=state.ui.generator||{};state.ui.generator.distribution=selected.value;
+  saveState();return true;
 }
 function syncRegisterToPlanner(){
   const r=ensureRegistrationState();
@@ -484,7 +565,7 @@ function renderDistributionOptions(){
 function renderSplitPreview(){
  const days=Number($("#generatorDays")?.value||3),focus=$("#generatorFocus")?.value||"general",goal=$("#generatorGoal")?.value||"Ganar masa muscular",distribution=$("#generatorDistribution")?.value||defaultDistributionForDays(days),opt=getDistribution(days,distribution),split=splitFor(days,focus,goal,opt.value),box=$("#splitPreview");
  if(!box)return;
- box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista. Prime OS distribuye el trabajo semanal según el objetivo; Full Body y Split no se presentan como ganadores universales.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión · Semana 4 Intensificación · Semana 5 Reducción de fatiga.</div>`;
+ box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista y acotada. Prime OS no sortea sesiones: usa combinaciones predefinidas por días y rota sólo variantes internas curadas semana a semana.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión · Semana 4 Intensificación · Semana 5 Reducción de fatiga.</div>`;
 }
 function renderSelectors(){ $("#weekSelect").innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${w}</option>`).join(""); const days=Object.keys(state.routine[state.selectedWeek]||{}),list=days.length?days:Array.from({length:state.planMeta.days||3},(_,i)=>`Día ${i+1}`); if(!list.includes(state.selectedDay))state.selectedDay=list[0]||"Día 1"; $("#daySelect").innerHTML=list.map(d=>`<option ${d===state.selectedDay?"selected":""}>${d}</option>`).join("");}
 function currentDayObj(){return state.routine[state.selectedWeek]?.[state.selectedDay]||{title:"Sin rutina",exercises:[]};}
