@@ -276,6 +276,7 @@ function applyLoadToExercise(e,level,context={}){
  return e;
 }
 
+let FALLBACK_ID_SEQ=0;
 function makeExerciseFromLibrary(item){
   const e = {
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()),
