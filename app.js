@@ -429,7 +429,8 @@ function sourceVariantFor(type,weekIndex){
   const family=familyOfType(type),vars=FAMILY_VARIANTS[family];
   if(!vars)return type;
   const letter=String(type).match(/[ABC]$/)?.[0],offset=letter==="B"?1:letter==="C"?2:0;
-  return vars[(Math.max(0,Number(weekIndex)||0)+offset)%vars.length];
+  const block=Math.floor(Math.max(0,Number(weekIndex)||0)/2);
+  return vars[(block+offset)%vars.length];
 }
 function exercisesFor(type,level,focus,context={}){
   const profile=context.profile||state.profile||{},weekIndex=Number(context.weekIndex||0);
@@ -458,7 +459,7 @@ function exercisesFor(type,level,focus,context={}){
     e.sets=prescriptionSets(e,currentGoal,level,weekIndex);
     e.loadLevel=periodizationForWeek(currentGoal,weekIndex).loadLevel;
     applyLoadToExercise(e,e.loadLevel,{goal:currentGoal,level,weekIndex});
-    e.weekIndex=weekIndex;e.planGoal=currentGoal;e.planLevel=level;
+    e.weekIndex=weekIndex;e.planGoal=currentGoal;e.planLevel=level;e.variantBlock=Math.floor(weekIndex/2)+1;e.sourceVariant=sourceType;
     e.restrictionNote=exerciseRestrictionNote(e,profile);
     if(level==="Principiante")e.recommendation=(e.recommendation||"")+" Parte con esfuerzo conservador y prioriza técnica.";
     return e;
@@ -546,7 +547,7 @@ function generateRoutine(days,level,goal,focus,distribution){
       directSetFactor:1,indirectSetFactor:INDIRECT_SET_FACTOR,
       autoregulation:"RIR + rendimiento registrado",volumeProgression:"Sólo en semanas 3 y 5 y sólo si existe rendimiento registrado; una serie por grupo como máximo por transición.",
       periodization:"6 semanas: Base → Progresión → Progresión de dosis → Intensificación → Consolidación → Reducción de fatiga",
-      structure:"Combinaciones acotadas por días; no se mezclan macroestructuras arbitrariamente.",
+      structure:"Combinaciones acotadas por días; no se mezclan macroestructuras arbitrariamente.",variantCadence:"La variante de ejercicios se mantiene 2 semanas para permitir comparación de rendimiento; las variables de dosis/esfuerzo cambian cada semana.",
       note:"La literatura respalda variables y principios; la secuencia exacta de seis semanas es una implementación transparente y no una prescripción universal de un solo estudio."
     }
   };
