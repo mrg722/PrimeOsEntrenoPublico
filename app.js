@@ -98,6 +98,10 @@ function volumeBandForGoal(goal,group){
   const major=new Set(["Pierna anterior","Pierna posterior/glúteo","Pecho","Espalda","Hombro"]);
   const small=new Set(["Bíceps","Tríceps","Gemelos","Abdomen"]);
   if(group==="Cardio/recuperación"||group==="General")return [0,0];
+  // Operational starting bands used by the engine to distribute weekly dose.
+  // They are not physiological minimum/maximums and are not copied as exact
+  // prescriptions from a single paper; the scientific constraint is the
+  // dose-response + diminishing-returns model.
   const bands={
     "Ganar fuerza general":{major:[8,12],small:[6,8]},
     "Ganar masa muscular":{major:[10,14],small:[6,10]},
