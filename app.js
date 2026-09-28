@@ -531,7 +531,7 @@ function renderRoutine(){
 }
 
 
-function localDateISO(){return new Date().toISOString().slice(0,10);}
+function localDateISO(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
 function weekdayLabel(dateISO){try{return new Intl.DateTimeFormat("es-CL",{weekday:"long"}).format(new Date(dateISO+"T12:00:00"));}catch(e){return "";}}
 function modalityForDays(days){const n=Number(days);return n===1?"Full Body":n===2?"Full Body":n===3?"3 días":n===4?"4 días":n===5?"5 días":"6 días";}
 function ensureRegistrationState(){
