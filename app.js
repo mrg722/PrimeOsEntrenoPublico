@@ -281,50 +281,73 @@ function applyTheme(themeName){
   document.querySelectorAll('#themeButtons .theme-chip').forEach(btn=>btn.classList.toggle('active', btn.dataset.theme===name));
 }
 
-function splitFor(days,focus="general"){
-  const n=Number(days); let split=[];
-  if(n===1) split=["Full Body"];
-  if(n===2) split=["Full Body","Full Body"];
-  if(n===3) split=["Full Body","Pecho + tríceps","Pierna posterior/glúteo"];
-  if(n===4) split=["Pierna anterior","Pecho + tríceps","Pierna posterior/glúteo","Espalda + bíceps"];
-  if(n===5) split=["Pierna anterior","Pecho + tríceps","Espalda + bíceps","Pierna posterior/glúteo","Hombro + brazos + abdomen"];
-  if(n===6) split=["Pierna anterior","Pecho + tríceps","Espalda + bíceps","Pierna posterior/glúteo","Hombro + brazos + abdomen","Cardio + abdomen"];
-  if(focus==="abs"&&n>=2) split[split.length-1]="Cardio + abdomen";
-  if(focus==="pierna-anterior"&&n>=2) split[0]="Pierna anterior";
-  if(focus==="pierna-posterior"&&n>=2) split[Math.min(2,n-1)]="Pierna posterior/glúteo";
-  if(focus==="pecho"&&n>=2) split[1]="Pecho + tríceps";
-  if(focus==="espalda"&&n>=2) split[Math.min(2,n-1)]="Espalda + bíceps";
+
+function splitFor(days,focus="general",goal="Ganar masa muscular"){
+  const n=Number(days);let split=[];
+  if(n===1)split=["Full Body"];
+  if(n===2)split=["Full Body A","Full Body B"];
+  if(n===3)split=["Full Body A","Full Body B","Full Body C"];
+  if(n===4)split=["Lower A","Upper A","Lower B","Upper B"];
+  if(n===5)split=["Lower A","Upper A","Lower B","Upper B","Full Body C"];
+  if(n===6)split=["Push A","Pull A","Legs A","Push B","Pull B","Legs B"];
+  if(focus==="pecho"&&n>=2)split[Math.min(1,n-1)]="Push A";
+  if(focus==="espalda"&&n>=2)split[Math.min(1,n-1)]="Pull A";
+  if(focus==="pierna-anterior"&&n>=2)split[0]="Lower A";
+  if(focus==="pierna-posterior"&&n>=2)split[Math.min(2,n-1)]="Lower B";
+  if(focus==="abs"&&n>=2)split[split.length-1]="Legs B";
+  if(goal==="Salud general"&&n<=3)split=Array.from({length:n},(_,i)=>"Full Body "+String.fromCharCode(65+i));
   return split;
 }
 function summaryForSplit(name){
-  return {"Full Body":"Pierna, pecho, espalda, glúteo/posterior, hombro y abdomen.","Pierna anterior":"Prensa, sentadilla simple, extensión de piernas, zancadas y abdomen.","Pierna posterior/glúteo":"Hip thrust, peso muerto rumano, curl femoral, prensa pies altos y glúteo.","Pecho + tríceps":"Press de pecho, press inclinado, aperturas, flexiones y tríceps.","Espalda + bíceps":"Jalón al pecho, remos, face pull, curl bíceps y curl martillo.","Hombro + brazos + abdomen":"Press hombro, elevaciones laterales, bíceps, tríceps y abdomen.","Cardio + abdomen":"Cardio suave, planchas, crunch, dead bug y movilidad."}[name]||"Rutina base general.";
+  return {"Full Body":"Pierna, pecho, espalda, glúteo/posterior, hombro y abdomen con volumen distribuido.","Full Body A":"Full Body con prioridad a patrones básicos y distribución equilibrada.","Full Body B":"Full Body con variantes para distribuir el estímulo.","Full Body C":"Full Body con tercera exposición y variantes.","Lower A":"Cuádriceps, posterior/glúteo, gemelos y core.","Lower B":"Posterior/glúteo, cuádriceps, gemelos y core con variantes.","Upper A":"Pecho, espalda, hombros y brazos.","Upper B":"Pecho, espalda, hombros y brazos con variantes.","Push A":"Pecho, hombros y tríceps.","Push B":"Pecho, hombros y tríceps con variantes.","Pull A":"Espalda, deltoide posterior y bíceps.","Pull B":"Espalda, deltoide posterior y bíceps con variantes.","Legs A":"Cuádriceps, posterior/glúteo, gemelos y abdomen.","Legs B":"Pierna completa, gemelos y abdomen con variantes."}[name]||"Rutina base general.";
 }
-function exercisesFor(type,level,focus){
-  const pick = {
+function exercisesFor(type,level,focus,context={}){
+  const picks={
     "Full Body":[["Pierna anterior","Prensa"],["Pecho","Press de pecho en máquina"],["Espalda","Jalón al pecho"],["Pierna posterior/glúteo","Curl femoral sentado"],["Hombro","Elevaciones laterales"],["Abdomen","Plancha"]],
-    "Pierna anterior":[["Pierna anterior","Prensa"],["Pierna anterior","Sentadilla goblet"],["Pierna anterior","Extensión de piernas"],["Pierna anterior","Zancadas"],["Pierna anterior","Subida al cajón"],["Gemelos","Gemelos de pie"],["Abdomen","Crunch"]],
-    "Pierna posterior/glúteo":[["Pierna posterior/glúteo","Hip thrust"],["Pierna posterior/glúteo","Peso muerto rumano"],["Pierna posterior/glúteo","Curl femoral sentado"],["Pierna posterior/glúteo","Prensa pies altos"],["Pierna posterior/glúteo","Patada de glúteo"],["Gemelos","Gemelos sentado"],["Abdomen","Plancha"]],
-    "Pecho + tríceps":[["Pecho","Press de pecho en máquina"],["Pecho","Press inclinado con mancuernas"],["Pecho","Aperturas en máquina"],["Pecho","Flexiones"],["Tríceps","Tríceps en polea"],["Tríceps","Extensión de tríceps con cuerda"]],
-    "Espalda + bíceps":[["Espalda","Jalón al pecho"],["Espalda","Remo sentado"],["Espalda","Remo con mancuerna"],["Espalda","Face pull"],["Bíceps","Curl bíceps con mancuernas"],["Bíceps","Curl martillo"]],
-    "Hombro + brazos + abdomen":[["Hombro","Press de hombro en máquina"],["Hombro","Elevaciones laterales"],["Hombro","Pájaros / posterior de hombro"],["Bíceps","Curl bíceps con mancuernas"],["Tríceps","Tríceps en polea"],["Abdomen","Elevación de piernas"]],
-    "Cardio + abdomen":[["Cardio/recuperación","Caminata inclinada"],["Abdomen","Plancha"],["Abdomen","Crunch"],["Abdomen","Dead bug"],["Abdomen","Pallof press"],["Cardio/recuperación","Movilidad general"]]
-  }[type] || [["General","Ejercicio personalizado"]];
-  let list = pick.map(([g,n])=>makeExerciseFromLibrary((EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g][0]));
-  if(focus==="abs") list.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Abdomen.find(e=>e.name==="Abdominal en máquina")));
-  if(focus==="pecho"&&!type.includes("Pecho")) list.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Pecho.find(e=>e.name==="Aperturas en máquina")));
-  if(focus==="espalda"&&!type.includes("Espalda")) list.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Espalda.find(e=>e.name==="Remo sentado")));
-  if(focus==="pierna-anterior"&&type!=="Pierna anterior") list.push(makeExerciseFromLibrary(EXERCISE_LIBRARY["Pierna anterior"].find(e=>e.name==="Extensión de piernas")));
-  if(focus==="pierna-posterior"&&type!=="Pierna posterior/glúteo") list.push(makeExerciseFromLibrary(EXERCISE_LIBRARY["Pierna posterior/glúteo"].find(e=>e.name==="Hip thrust")));
-  if(focus==="brazos"&&!type.includes("brazos")){list.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Bíceps[0]));list.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Tríceps[0]));}
-  if(level==="Principiante") list=list.map(e=>({...e,sets:Math.min(Number(e.sets),3),recommendation:e.recommendation+" Usa RIR 3 al inicio.",note:e.note+" Usa RIR 3 al inicio."}));
-  if(level==="Avanzado") list=list.map(e=>({...e,sets:Number(e.sets)+(["Pecho","Espalda","Pierna anterior","Pierna posterior/glúteo"].includes(e.group)?1:0)}));
-  return list.slice(0,8);
+    "Full Body A":[["Pierna anterior","Prensa"],["Pecho","Press de pecho en máquina"],["Espalda","Jalón al pecho"],["Pierna posterior/glúteo","Curl femoral sentado"],["Hombro","Elevaciones laterales"],["Abdomen","Plancha"]],
+    "Full Body B":[["Pierna anterior","Sentadilla goblet"],["Pecho","Press banca"],["Espalda","Remo sentado"],["Pierna posterior/glúteo","Peso muerto rumano"],["Hombro","Pájaros / posterior de hombro"],["Abdomen","Pallof press"]],
+    "Full Body C":[["Pierna anterior","Zancadas"],["Pecho","Press inclinado con mancuernas"],["Espalda","Remo en máquina"],["Pierna posterior/glúteo","Hip thrust"],["Hombro","Elevaciones laterales"],["Abdomen","Crunch"]],
+    "Lower A":[["Pierna anterior","Prensa"],["Pierna posterior/glúteo","Peso muerto rumano"],["Pierna anterior","Extensión de piernas"],["Pierna posterior/glúteo","Curl femoral sentado"],["Gemelos","Gemelos de pie"],["Abdomen","Crunch"]],
+    "Lower B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna posterior/glúteo","Curl femoral sentado"],["Pierna anterior","Zancadas"],["Gemelos","Gemelos sentado"],["Abdomen","Dead bug"]],
+    "Upper A":[["Pecho","Press banca"],["Espalda","Jalón al pecho"],["Hombro","Press hombro con mancuernas"],["Espalda","Remo sentado"],["Bíceps","Curl bíceps con mancuernas"],["Tríceps","Tríceps en polea"]],
+    "Upper B":[["Pecho","Press inclinado en máquina"],["Espalda","Remo en máquina"],["Hombro","Elevaciones laterales"],["Espalda","Dominadas asistidas"],["Bíceps","Curl martillo"],["Tríceps","Extensión de tríceps con cuerda"],["Hombro","Pájaros / posterior de hombro"]],
+    "Push A":[["Pecho","Press banca"],["Pecho","Press inclinado con mancuernas"],["Hombro","Press hombro con mancuernas"],["Hombro","Elevaciones laterales"],["Tríceps","Tríceps en polea"],["Tríceps","Extensión de tríceps con cuerda"]],
+    "Push B":[["Pecho","Press de pecho en máquina"],["Pecho","Aperturas en máquina"],["Hombro","Press de hombro en máquina"],["Hombro","Pájaros / posterior de hombro"],["Tríceps","Fondos asistidos"],["Tríceps","Extensión sobre cabeza"]],
+    "Pull A":[["Espalda","Jalón al pecho"],["Espalda","Remo sentado"],["Espalda","Remo pecho apoyado"],["Espalda","Face pull"],["Bíceps","Curl bíceps con mancuernas"],["Bíceps","Curl martillo"]],
+    "Pull B":[["Espalda","Dominadas asistidas"],["Espalda","Remo en máquina"],["Espalda","Pullover en polea"],["Hombro","Pájaros / posterior de hombro"],["Bíceps","Curl predicador"],["Bíceps","Curl bíceps en polea"]],
+    "Legs A":[["Pierna anterior","Prensa"],["Pierna posterior/glúteo","Peso muerto rumano"],["Pierna anterior","Zancadas"],["Pierna posterior/glúteo","Curl femoral sentado"],["Gemelos","Gemelos de pie"],["Abdomen","Plancha"]],
+    "Legs B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna anterior","Extensión de piernas"],["Pierna posterior/glúteo","Curl femoral acostado"],["Gemelos","Gemelos sentado"],["Abdomen","Pallof press"]]
+  }[type]||[["General","Ejercicio personalizado"]];
+  const profile=context.profile||state.profile||{};const items=[];
+  for(const [g,n] of picks){const item=(EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g]?.[0];if(item){const ex=makeExerciseFromLibrary(item);if(isExerciseCompatible(ex,profile))items.push(ex);}}
+  if(focus==="abs")items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Abdomen.find(e=>e.name==="Pallof press")||EXERCISE_LIBRARY.Abdomen[0]));
+  if(focus==="pecho"&&!type.toLowerCase().includes("push")&&!type.toLowerCase().includes("upper")&&!items.some(e=>e.group==="Pecho"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Pecho[0]));
+  if(focus==="espalda"&&!type.toLowerCase().includes("pull")&&!type.toLowerCase().includes("upper")&&!items.some(e=>e.group==="Espalda"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Espalda[0]));
+  if(focus==="pierna-anterior"&&!items.some(e=>e.group==="Pierna anterior"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY["Pierna anterior"][0]));
+  if(focus==="pierna-posterior"&&!items.some(e=>e.group==="Pierna posterior/glúteo"))items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY["Pierna posterior/glúteo"][0]));
+  if(focus==="brazos"){items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Bíceps[0]));items.push(makeExerciseFromLibrary(EXERCISE_LIBRARY.Tríceps[0]));}
+  const maxByTime={"30 min":4,"45-60 min":6,"60-75 min":7,"75-90 min":8};const maxExercises=maxByTime[profile.time]||8;
+  return items.filter((e,i,a)=>a.findIndex(x=>x.name===e.name&&x.group===e.group)===i).slice(0,maxExercises).map(e=>{hydrateExercise(e);e.sets=prescriptionSets(e,context.goal||state.planMeta.goal||"Salud general",level,Number(context.weekIndex||0));applyLoadToExercise(e,e.loadLevel||"Moderado",{goal:context.goal||state.planMeta.goal,level,weekIndex:Number(context.weekIndex||0)});e.restrictionNote=exerciseRestrictionNote(e,profile);if(level==="Principiante")e.recommendation=e.recommendation+" Parte con un esfuerzo conservador y prioriza técnica.";return e;});
+}
+function trainingEngine(days,level,goal,focus,profile,weekIndex){
+  return splitFor(days,focus,goal).map(type=>({title:type,exercises:exercisesFor(type,level,focus,{goal,level,weekIndex,profile})}));
 }
 function generateRoutine(days,level,goal,focus){
-  const n=Number(days); state.planMeta={days:n,level,goal,focus,generated:true};
-  const split=splitFor(n,focus);
-  state.weeks.forEach(week=>{state.routine[week]={};split.forEach((type,idx)=>state.routine[week][`Día ${idx+1}`]={title:type,exercises:exercisesFor(type,level,focus)});});
-  state.selectedWeek="Semana 1"; state.selectedDay="Día 1"; saveState();
+  const n=Number(days);
+  if(state.sessions.length&&!confirm("Ya existen sesiones registradas. La regeneración cambiará la planificación actual, pero conservará el historial. ¿Continuar?"))return false;
+  const profile={...state.profile,days:String(n),level,goal,focus};
+  state.profile={...state.profile,days:String(n),level,goal,focus};
+  state.planMeta={days:n,level,goal,focus,generated:true,engine:"Evidence Training Engine 2026",evidenceVersion:EVIDENCE_VERSION};
+  state.weeks.forEach((week,weekIndex)=>{
+    const plan=trainingEngine(n,level,goal,focus,profile,weekIndex);
+    state.routine[week]={};
+    plan.forEach((day,idx)=>{
+      const phase=weekIndex===0?"Base":weekIndex===1||weekIndex===2?"Construcción":weekIndex===3?"Intensificación":"Reducción de fatiga";
+      const exercises=day.exercises.map(e=>{const copy=JSON.parse(JSON.stringify(e));copy.weekRole=phase;return copy;});
+      state.routine[week]["Día "+(idx+1)]={title:day.title,exercises};
+    });
+  });
+  state.selectedWeek="Semana 1";state.selectedDay="Día 1";saveState();return true;
 }
 
 function go(view){
