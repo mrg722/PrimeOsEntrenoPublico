@@ -1474,15 +1474,23 @@ function renderProgress(){
 }
 function addWeek(){
  if(state.planMeta?.programLengthWeeks===6||state.weeks.length>=6){alert("El bloque actual está definido en 6 semanas. Genera un nuevo bloque cuando quieras reiniciar la progresión.");return;}
- const last=state.weeks[state.weeks.length-1],nextNum=Number((last.match(/\d+/)||[state.weeks.length])[0])+1,next=`Semana ${nextNum}`;
- state.weeks.push(next);
+ const last=state.weeks[state.weeks.length-1],nextNum=Number((last.match(/\d+/)||[state.weeks.length])[0])+1,next="Semana "+nextNum;
  const n=Number(state.planMeta?.days||state.profile?.days||3),level=state.planMeta?.level||state.profile?.level||"Intermedio",goal=state.planMeta?.goal||state.profile?.goal||"Salud general",focus=state.planMeta?.focus||state.profile?.focus||"general",dist=state.planMeta?.distribution||defaultDistributionForDays(n);
- const profile={...state.profile,days:String(n),level,goal,focus,distribution:dist};
- const plan=trainingEngine(n,level,goal,focus,profile,state.weeks.length-1,dist);
+ const schedule=scheduleForPlan(state.planMeta,state.profile);
+ const profile={...state.profile,days:String(n),level,goal,focus,distribution:dist,weekdaySchedule:schedule};
+ const plan=trainingEngine(n,level,goal,focus,profile,state.weeks.length,dist);
  state.routine[next]={};
- plan.forEach((day,idx)=>{state.routine[next]["Día "+(idx+1)]={title:day.title,exercises:day.exercises};});
- state.selectedWeek=next;saveState();renderAll();
+ plan.forEach((day,idx)=>{
+   const weekday=WEEKDAYS_ES[schedule[idx]??idx];
+   if(!weekday)return;
+   state.routine[next][weekday]={title:day.title,exercises:day.exercises,weekIndex:state.weeks.length,weekdayIndex:schedule[idx]};
+ });
+ state.weeks.push(next);
+ state.selectedWeek=next;
+ state.selectedDay=WEEKDAYS_ES[schedule[0]??0]||"Lunes";
+ saveState();renderAll();
 }
+
 function addExercise(fromRegister=false){
   if(fromRegister){
     const r=ensureRegistrationState();
