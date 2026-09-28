@@ -657,8 +657,7 @@ function generateRoutine(days,level,goal,focus,distribution,weekdaySchedule){
   const schedule=normalizedSchedule.length===n?normalizedSchedule:defaultWeekdaySchedule(n);
   if(state.sessions.length&&!confirm("Ya existen sesiones registradas. La regeneración cambiará la planificación actual, pero conservará el historial. ¿Continuar?"))return false;
   const profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value,weekdaySchedule:schedule};
-  state.profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value,weekdaySchedule:schedule};
-  state.planMeta={
+  const nextPlanMeta={
     days:n,level,goal,focus,distribution:selected.value,distributionLabel:selected.label,weekdaySchedule:schedule,generated:true,
     engine:"Evidence Training Engine 2026",evidenceVersion:EVIDENCE_VERSION,programLengthWeeks:6,
     evidenceModel:{
@@ -672,8 +671,12 @@ function generateRoutine(days,level,goal,focus,distribution,weekdaySchedule){
   const generatedWeeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
   let generatedRoutine;
   try{
+    const previousPlanMeta=state.planMeta;
+    state.planMeta=nextPlanMeta;
     generatedRoutine=buildGeneratedRoutine(n,level,goal,focus,selected.value,profile,generatedWeeks);
+    state.planMeta=previousPlanMeta;
   }catch(err){
+    state.planMeta=state.planMeta;
     console.error("Prime OS: ENGINE_GENERATION_ERROR",err);
     alert("Prime OS no pudo completar el motor de generación. El estado anterior se conservó. Detalle: "+(err?.message||"error desconocido"));
     return false;
@@ -683,19 +686,23 @@ function generateRoutine(days,level,goal,focus,distribution,weekdaySchedule){
     alert("El generador no pudo completar una rutina válida de 6 semanas. No se guardaron cambios incompletos.");
     return false;
   }
+  state.profile=profile;
+  state.planMeta=nextPlanMeta;
   state.weeks=generatedWeeks;
   state.routine=generatedRoutine;
-  // A new plan is a new planning context: do not leave Registrar attached to an old edited session.
   state.ui=state.ui||{};
   state.ui.register=state.ui.register||{};
   state.ui.register.editingSessionId=null;
+  state.selectedWeek="Semana 1";
+  state.selectedDay=WEEKDAYS_ES[schedule[0]]||"Lunes";
+  state.ui.generator=state.ui.generator||{};
+  state.ui.generator.distribution=selected.value;
+  state.ui.generator.weekdaySchedule=schedule;
   state.ui.register.week="Semana 1";
-  state.ui.register.sessionKey=state.selectedDay||"Lunes";
+  state.ui.register.sessionKey=state.selectedDay;
   state.ui.register.performedDate=state.ui.register.performedDate||localDateISO();
   state.ui.register.modality=modalityForDays(n);
-  state.selectedWeek="Semana 1";state.selectedDay=WEEKDAYS_ES[schedule[0]]||"Lunes";
-  state.ui=state.ui||{};state.ui.generator=state.ui.generator||{};state.ui.generator.distribution=selected.value;state.ui.generator.weekdaySchedule=schedule;
-  state.ui.register=state.ui.register||{};state.ui.register.week="Semana 1";state.ui.register.sessionKey=state.selectedDay;state.ui.register.weekday=schedule[0]??0;
+  state.ui.register.weekday=schedule[0]??0;
   saveState();return true;
 }
 function syncRegisterToPlanner(){
