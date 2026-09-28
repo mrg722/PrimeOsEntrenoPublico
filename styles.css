@@ -322,3 +322,6 @@ body[data-theme="negro"] .theme-chip.active{box-shadow:0 0 0 3px rgba(125,133,14
 .set-remove{font-size:11px;padding:7px 10px}
 .evidence-applied{font-size:11px;color:var(--muted)}
 @media(max-width:980px){.set-actions{width:100%}.set-remove{width:100%}}
+
+/* Prime OS 2.2 */
+.set-line .set-remove{white-space:nowrap}
