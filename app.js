@@ -54,6 +54,9 @@ const EVIDENCE_KEYS={
 
 function goalRule(goal){return TRAINING_RULES[goal]||TRAINING_RULES["Salud general"];}
 function rangeText(a,b){return a===b?String(a):a+"-"+b;}
+function evidenceRefText(refs){
+  return Array.from(new Set((Array.isArray(refs)?refs:[]).map(ref=>EVIDENCE_KEYS[ref]||ref).filter(Boolean))).join(", ");
+}
 function periodizationForWeek(goal,weekIndex){
   const g=goalRule(goal),i=Math.max(0,Math.min(5,Number(weekIndex)||0));
   const phases=[
@@ -1609,7 +1612,11 @@ function bindControls(){
     if(errors.length){showValidation(errors);return;}
     try{
       const days=Number(state.profile.days||3),dist=getDistribution(days,state.profile.distribution).value;
-      const ok=generateRoutine(days,state.profile.level,state.profile.goal,state.profile.focus,dist);
+      const storedSchedule=Array.isArray(state.ui?.generator?.weekdaySchedule)
+        ? normalizeWeekdaySchedule(state.ui.generator.weekdaySchedule,days)
+        : [];
+      const schedule=storedSchedule.length===days?storedSchedule:defaultWeekdaySchedule(days);
+      const ok=generateRoutine(days,state.profile.level,state.profile.goal,state.profile.focus,dist,schedule);
       $("#generatorDays").value=days;$("#generatorLevel").value=state.profile.level;$("#generatorGoal").value=state.profile.goal;$("#generatorFocus").value=state.profile.focus;
       renderDistributionOptions();$("#generatorDistribution").value=dist;
       if(ok){
