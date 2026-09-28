@@ -379,3 +379,10 @@ body[data-theme="negro"] .theme-chip.active{box-shadow:0 0 0 3px rgba(125,133,14
 @media(max-width:760px){
   .routine-add-panel,.register-add-panel{padding:12px}
 }
+
+/* Prime OS 2.5 · context-safe planner navigation */
+.context-hidden{display:none!important}
+.top-actions.planner-context{display:flex}
+@media(max-width:760px){
+  .top-actions.planner-context{display:grid}
+}
