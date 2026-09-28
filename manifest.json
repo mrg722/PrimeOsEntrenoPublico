@@ -1,12 +1,12 @@
 {
-  "name": "Prime OS Entrenamiento Inteligente V2.0",
+  "name": "Prime OS Entrenamiento Inteligente V2.3",
   "short_name": "Prime OS",
-  "start_url": "./index.html?v=2.0",
+  "start_url": "./index.html?v=2.3",
   "display": "standalone",
   "background_color": "#0d1117",
   "theme_color": "#0d1117",
   "icons": [],
-  "description": "Prime OS público V2.0 con motor de entrenamiento basado en evidencia, registro, progreso y respaldo local.",
+  "description": "Prime OS público V2.3 con motor de entrenamiento basado en evidencia, distribución ajustable, periodización, registro, progreso y respaldo local.",
   "orientation": "portrait-primary",
   "scope": "./"
 }
