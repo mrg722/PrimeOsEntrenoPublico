@@ -28,16 +28,77 @@ const EVIDENCE_DATABASES=[
 {name:"ACSM",url:"https://acsm.org/",role:"Position stands y guías profesionales para traducir evidencia a práctica."},
 {name:"NSCA",url:"https://www.nsca.com/about-us/position-statements/",role:"Position statements de fuerza y acondicionamiento."},
 {name:"BJSM",url:"https://bjsm.bmj.com/",role:"Medicina deportiva y síntesis de evidencia."},
-{name:"JOSPT",url:"https://www.jospt.org/",role:"Evidencia aplicada a ejercicio, movimiento, dolor y rehabilitación cuando corresponde."}
+{name:"JOSPT",url:"https://www.jospt.org/",role:"Evidencia aplicada a ejercicio, movimiento, dolor y rehabilitación cuando corresponde."},
+{name:"Google Scholar",url:"https://scholar.google.com/",role:"Descubrimiento y rastreo de citas; todo estudio localizado allí debe verificarse en la fuente editorial o base primaria antes de entrar al registro."},
+{name:"PMC (PubMed Central)",url:"https://pmc.ncbi.nlm.nih.gov/",role:"Texto completo gratuito cuando el artículo biomédico está depositado en PMC."}
 ];
 const TRAINING_RULES={
-"Ganar fuerza general":{repRange:[4,8],targetRir:"2",rest:"2-4 min"},
-"Ganar masa muscular":{repRange:[6,15],targetRir:"1-3",rest:"1.5-3 min"},
-"Recomposición corporal":{repRange:[6,15],targetRir:"2-3",rest:"1.5-3 min"},
-"Bajar grasa":{repRange:[6,15],targetRir:"2-3",rest:"1.5-3 min"},
-"Salud general":{repRange:[8,15],targetRir:"3",rest:"1-3 min"},
-"Volver a entrenar":{repRange:[8,15],targetRir:"3-4",rest:"1-3 min"}
+"Ganar fuerza general":{repRange:[4,8],targetRir:"2",rest:"2-4 min",evidenceRefs:["acsm2026","load2021","periodization2022","order2021"]},
+"Ganar masa muscular":{repRange:[6,15],targetRir:"1-3",rest:"1.5-3 min",evidenceRefs:["acsm2026","dose2026","bjsm2023","rir2024","failure2023","failure2022","rest2024","fullbody2024"]},
+"Recomposición corporal":{repRange:[6,15],targetRir:"2-3",rest:"1.5-3 min",evidenceRefs:["acsm2026","dose2026","rir2024","rest2024","fullbody2024"]},
+"Bajar grasa":{repRange:[6,15],targetRir:"2-3",rest:"1.5-3 min",evidenceRefs:["acsm2026","rir2024","rest2024","concurrent2026"]},
+"Salud general":{repRange:[8,15],targetRir:"3",rest:"1-3 min",evidenceRefs:["acsm2026","fullbody2024"]},
+"Volver a entrenar":{repRange:[8,15],targetRir:"3-4",rest:"1-3 min",evidenceRefs:["acsm2026","rir2024","rest2024","screening2015"]}
 };
+const EVIDENCE_KEYS={
+ acsm2026:"PMID 41843416",dose2026:"PMID 41343037",bjsm2023:"PMID 37414459",rir2024:"PMID 38970765",
+ failure2023:"PMID 36334240",failure2022:"PMID 33497853",rest2024:"PMID 39205815",periodization2022:"PMID 35044672",
+ fullbody2024:"PMID 38595233",load2021:"PMID 33874848",order2021:"PMID 32077380",concurrent2026:"PMID 41762427",screening2015:"PMID 26473759"
+};
+function goalRule(goal){return TRAINING_RULES[goal]||TRAINING_RULES["Salud general"];}
+function evidenceRefText(keys=[]){return (keys||[]).map(k=>EVIDENCE_KEYS[k]||k).join(" · ");}
+function rangeText(a,b){return a===b?String(a):a+"-"+b;}
+function periodizationForWeek(goal,weekIndex){
+ const phases=[
+  {phase:"Base",loadLevel:"Moderado",rir:goalRule(goal).targetRir,setFactor:1},
+  {phase:"Progresión",loadLevel:"Moderado",rir:"2",setFactor:1},
+  {phase:"Progresión",loadLevel:"Moderado",rir:goal==="Ganar fuerza general"||goal==="Ganar masa muscular"?"1-2":goalRule(goal).targetRir,setFactor:1},
+  {phase:"Intensificación",loadLevel:goal==="Ganar fuerza general"?"Alto":"Moderado",rir:goal==="Ganar fuerza general"||goal==="Ganar masa muscular"?"1-2":goalRule(goal).targetRir,setFactor:1},
+  {phase:"Reducción de fatiga",loadLevel:"Moderado",rir:goal==="Volver a entrenar"?"3-4":"3",setFactor:.7}
+ ];
+ return phases[Math.max(0,Math.min(4,Number(weekIndex)||0))];
+}
+function evidencePrescription(e,goal,level,loadLevel,weekIndex){
+ const rule=goalRule(goal),phase=periodizationForWeek(goal,weekIndex);
+ if((e.group||"")==="Cardio/recuperación")return{suggestedReps:e.baseReps||e.reps||"20-35 min",suggestedRest:"Suave/moderado",targetRir:"Percepción de esfuerzo cómoda",rationale:"El componente cardiovascular se regula por modalidad, duración e intensidad.",evidenceRefs:["concurrent2026"],phase:phase.phase};
+ let low=rule.repRange[0],high=rule.repRange[1];
+ if(goal==="Ganar fuerza general"){
+  if(weekIndex===1){low=4;high=7;} if(weekIndex===2){low=4;high=6;} if(weekIndex===3){low=3;high=6;} if(weekIndex===4){low=4;high=8;}
+ }else if(goal==="Ganar masa muscular"||goal==="Recomposición corporal"){
+  if(weekIndex===1){low=7;high=15;} if(weekIndex===2){low=6;high=12;} if(weekIndex===3){low=6;high=10;} if(weekIndex===4){low=8;high=15;}
+ }else{
+  if(weekIndex===1){low=Math.max(low,8);high=Math.min(high,15);} if(weekIndex===2){low=Math.max(low,8);high=Math.min(high,12);} if(weekIndex===3){low=Math.max(low,6);high=Math.min(high,12);} if(weekIndex===4){low=Math.max(low,8);high=Math.min(high,15);}
+ }
+ if(loadLevel==="Bajo"){low+=2;high+=3;}
+ const suggestedRest=(loadLevel==="Alto"||goal==="Ganar fuerza general")?(goal==="Ganar fuerza general"?"2.5-4 min":"2-3 min"):rule.rest;
+ const rationale=goal==="Ganar fuerza general"?"Progresión orientada a fuerza: carga, prioridad de movimientos y RIR explícito.":goal==="Ganar masa muscular"?"Progresión orientada a hipertrofia: volumen semanal distribuido, rango amplio de repeticiones y RIR controlable.":"Prescripción adaptable al objetivo, rendimiento y recuperación; no es un mínimo o máximo universal.";
+ return{suggestedReps:rangeText(low,high),suggestedRest,targetRir:phase.rir,rationale,evidenceRefs:rule.evidenceRefs,phase:phase.phase};
+}
+function prescriptionSets(e,goal,level,weekIndex){
+ let sets=Math.max(1,Number(e.sets)||3); if(level==="Principiante")sets=Math.min(sets,3); if(goal==="Salud general"||goal==="Volver a entrenar")sets=Math.min(sets,3);
+ return Math.max(1,Math.round(sets*periodizationForWeek(goal,weekIndex).setFactor));
+}
+function volumeBandForGoal(goal,group){
+ const major=new Set(["Pierna anterior","Pierna posterior/glúteo","Pecho","Espalda","Hombro"]),small=new Set(["Bíceps","Tríceps","Gemelos","Abdomen"]);
+ if(group==="Cardio/recuperación"||group==="General")return [0,0];
+ const bands={
+  "Ganar fuerza general":{major:[8,10],small:[6,8]},"Ganar masa muscular":{major:[10,14],small:[6,10]},
+  "Recomposición corporal":{major:[8,12],small:[6,8]},"Bajar grasa":{major:[8,12],small:[6,8]},
+  "Salud general":{major:[6,10],small:[4,6]},"Volver a entrenar":{major:[6,8],small:[3,6]}
+ };
+ const p=bands[goal]||bands["Salud general"]; return major.has(group)?p.major:small.has(group)?p.small:[0,0];
+}
+function distributeWeeklySets(plan,goal){
+ const groups={};
+ plan.forEach(day=>(day.exercises||[]).forEach(e=>{(groups[e.group]||(groups[e.group]=[])).push(e);}));
+ Object.entries(groups).forEach(([group,items])=>{
+  const band=volumeBandForGoal(goal,group); if(!band[1])return;
+  const target=Math.round((band[0]+band[1])/2); let remaining=target;
+  items.forEach((e,i)=>{const slots=items.length-i;const sets=Math.max(1,Math.floor(remaining/slots));e.sets=sets;remaining=Math.max(0,remaining-sets);});
+ });
+ return plan;
+}
+
 function goalRule(goal){return TRAINING_RULES[goal]||TRAINING_RULES["Salud general"];}
 function rangeText(a,b){return a===b?String(a):a+"-"+b;}
 function evidencePrescription(e,goal,level,loadLevel,weekIndex){
@@ -190,7 +251,7 @@ function lib(name, group, equipment, sets, reps, rest, objective, how, recommend
 function applyLoadToExercise(e,level,context={}){
  e.loadLevel=level||e.loadLevel||"Moderado";
  const p=evidencePrescription(e,context.goal||state?.planMeta?.goal||"Salud general",context.level||state?.planMeta?.level||"Intermedio",e.loadLevel,Number(context.weekIndex??0));
- e.suggestedReps=p.suggestedReps;e.suggestedRest=p.suggestedRest;e.targetRir=p.targetRir;e.trainingRationale=p.rationale;
+ e.suggestedReps=p.suggestedReps;e.suggestedRest=p.suggestedRest;e.targetRir=p.targetRir;e.trainingRationale=p.rationale;e.evidenceRefs=p.evidenceRefs||goalRule(context.goal||state?.planMeta?.goal||"Salud general").evidenceRefs;e.periodizationNote=p.periodizationNote||p.phase||"";
  e.loadGuide=e.loadLevel==="Alto"?"Carga desafiante: prioriza técnica y usa el RIR objetivo.":"Carga liviana/moderada: punto de partida adaptable al objetivo y al contexto.";
  if(!e.userOverrideReps)e.reps=e.suggestedReps||e.baseReps||e.reps;
  if(!e.userOverrideRest)e.rest=e.suggestedRest||e.baseRest||e.rest;
@@ -221,11 +282,11 @@ function defaultExercise(group="Pecho"){
 }
 
 const defaultState = () => ({schemaVersion:2,
-  profile:{name:"",age:"",height:"",weight:"",email:"",phone:"",goal:"Salud general",level:"Principiante",days:"3",time:"45-60 min",place:"Gimnasio",focus:"general",health:[],alarms:[],painLevel:0,painZone:"Ninguna",avoid:"",medicalHistory:"",injuryHistory:"",notes:"",risk:"Sin evaluar"},
+  profile:{name:"",age:"",height:"",weight:"",email:"",phone:"",goal:"Salud general",level:"Principiante",days:"3",time:"45-60 min",place:"Gimnasio",focus:"general",distribution:"full-body-3",health:[],alarms:[],painLevel:0,painZone:"Ninguna",avoid:"",medicalHistory:"",injuryHistory:"",notes:"",risk:"Sin evaluar"},
   weeks:["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5"],
   selectedWeek:"Semana 1",
   selectedDay:"Día 1",
-  planMeta:{days:3,level:"Intermedio",goal:"Ganar masa muscular",focus:"general",generated:false},
+  planMeta:{days:3,level:"Intermedio",goal:"Ganar masa muscular",focus:"general",distribution:"full-body-3",distributionLabel:"Full Body ×3",generated:false},
   routine:{},
   sessions:[],
   sessionDrafts:{},
@@ -285,22 +346,32 @@ function applyTheme(themeName){
 }
 
 
-function splitFor(days,focus="general",goal="Ganar masa muscular"){
-  const n=Number(days);let split=[];
-  if(n===1)split=["Full Body"];
-  if(n===2)split=["Full Body A","Full Body B"];
-  if(n===3)split=["Full Body A","Full Body B","Full Body C"];
-  if(n===4)split=["Lower A","Upper A","Lower B","Upper B"];
-  if(n===5)split=["Lower A","Upper A","Lower B","Upper B","Full Body C"];
-  if(n===6)split=["Push A","Pull A","Legs A","Push B","Pull B","Legs B"];
-  if(focus==="pecho"&&n>=2)split[Math.min(1,n-1)]="Push A";
-  if(focus==="espalda"&&n>=2)split[Math.min(1,n-1)]="Pull A";
-  if(focus==="pierna-anterior"&&n>=2)split[0]="Lower A";
-  if(focus==="pierna-posterior"&&n>=2)split[Math.min(2,n-1)]="Lower B";
-  if(focus==="abs"&&n>=2)split[split.length-1]="Legs B";
-  if(goal==="Salud general"&&n<=3)split=Array.from({length:n},(_,i)=>"Full Body "+String.fromCharCode(65+i));
-  return split;
-}
+const DISTRIBUTION_POLICIES={
+1:[{value:"full-body-1",label:"Full Body",sessions:["Full Body"],basis:"Una sesión semanal de cuerpo completo para concentrar la dosis disponible."}],
+2:[{value:"full-body-2",label:"Full Body ×2",sessions:["Full Body A","Full Body B"],basis:"Dos exposiciones de cuerpo completo; el trabajo se reparte entre ambas sesiones."}],
+3:[
+ {value:"full-body-3",label:"Full Body ×3",sessions:["Full Body A","Full Body B","Full Body C"],basis:"Tres exposiciones globales para repartir el volumen semanal."},
+ {value:"full-upper-lower",label:"Full Body + Upper + Lower",sessions:["Full Body A","Upper A","Lower A"],basis:"Una exposición global y una sesión específica de tren superior e inferior."}
+],
+4:[
+ {value:"upper-lower-4",label:"Upper / Lower ×2",sessions:["Upper A","Lower A","Upper B","Lower B"],basis:"Dos exposiciones de tren superior e inferior para distribuir el trabajo en cuatro sesiones."},
+ {value:"full-full-upper-lower",label:"Full Body + Full Body + Upper + Lower",sessions:["Full Body A","Full Body B","Upper A","Lower A"],basis:"Dos sesiones globales más una específica de tren superior y otra inferior."}
+],
+5:[
+ {value:"upper-lower-2-full",label:"Upper / Lower ×2 + Full Body",sessions:["Upper A","Lower A","Upper B","Lower B","Full Body C"],basis:"Cuatro sesiones divididas más una exposición global."},
+ {value:"push-pull-legs-full-upper",label:"Push + Pull + Legs + Full Body + Upper",sessions:["Push A","Pull A","Legs A","Full Body C","Upper A"],basis:"Mezcla determinista de patrones para distribuir el trabajo semanal."}
+],
+6:[
+ {value:"ppl-2",label:"Push / Pull / Legs ×2",sessions:["Push A","Pull A","Legs A","Push B","Pull B","Legs B"],basis:"Seis sesiones divididas por patrón; no se ofrece Full Body ×6."},
+ {value:"upper-lower-3",label:"Upper / Lower ×3",sessions:["Upper A","Lower A","Upper B","Lower B","Upper A","Lower A"],basis:"Tres exposiciones de tren superior e inferior; la repetición A se usa de forma deliberada."}
+]
+};
+function distributionOptionsForDays(days){return DISTRIBUTION_POLICIES[Number(days)]||DISTRIBUTION_POLICIES[3];}
+function defaultDistributionForDays(days){return distributionOptionsForDays(days)[0].value;}
+function getDistribution(days,value){const opts=distributionOptionsForDays(days);return opts.find(x=>x.value===value)||opts[0];}
+function distributionLabel(days,value){return getDistribution(days,value).label;}
+function splitFor(days,focus="general",goal="Ganar masa muscular",distribution=null){return getDistribution(days,distribution).sessions.slice(0,Number(days));}
+
 function summaryForSplit(name){
   return {"Full Body":"Pierna, pecho, espalda, glúteo/posterior, hombro y abdomen con volumen distribuido.","Full Body A":"Full Body con prioridad a patrones básicos y distribución equilibrada.","Full Body B":"Full Body con variantes para distribuir el estímulo.","Full Body C":"Full Body con tercera exposición y variantes.","Lower A":"Cuádriceps, posterior/glúteo, gemelos y core.","Lower B":"Posterior/glúteo, cuádriceps, gemelos y core con variantes.","Upper A":"Pecho, espalda, hombros y brazos.","Upper B":"Pecho, espalda, hombros y brazos con variantes.","Push A":"Pecho, hombros y tríceps.","Push B":"Pecho, hombros y tríceps con variantes.","Pull A":"Espalda, deltoide posterior y bíceps.","Pull B":"Espalda, deltoide posterior y bíceps con variantes.","Legs A":"Cuádriceps, posterior/glúteo, gemelos y abdomen.","Legs B":"Pierna completa, gemelos y abdomen con variantes."}[name]||"Rutina base general.";
 }
@@ -332,29 +403,45 @@ function exercisesFor(type,level,focus,context={}){
   const maxByTime={"30 min":4,"45-60 min":6,"60-75 min":7,"75-90 min":8};const maxExercises=maxByTime[profile.time]||8;
   return items.filter((e,i,a)=>a.findIndex(x=>x.name===e.name&&x.group===e.group)===i).slice(0,maxExercises).map(e=>{hydrateExercise(e);e.sets=prescriptionSets(e,context.goal||state.planMeta.goal||"Salud general",level,Number(context.weekIndex||0));applyLoadToExercise(e,e.loadLevel||"Moderado",{goal:context.goal||state.planMeta.goal,level,weekIndex:Number(context.weekIndex||0)});e.restrictionNote=exerciseRestrictionNote(e,profile);if(level==="Principiante")e.recommendation=e.recommendation+" Parte con un esfuerzo conservador y prioriza técnica.";return e;});
 }
-function trainingEngine(days,level,goal,focus,profile,weekIndex){
-  return splitFor(days,focus,goal).map(type=>({title:type,exercises:exercisesFor(type,level,focus,{goal,level,weekIndex,profile})}));
+function trainingEngine(days,level,goal,focus,profile,weekIndex,distribution){
+ const phase=periodizationForWeek(goal,weekIndex),split=splitFor(days,focus,goal,distribution);
+ let plan=split.map(type=>({title:type,exercises:exercisesFor(type,level,focus,{goal,level,weekIndex,profile})}));
+ plan=distributeWeeklySets(plan,goal);
+ plan.forEach(day=>(day.exercises||[]).forEach(e=>{
+  e.weekRole=phase.phase;e.phase=phase.phase;
+  e.periodizationNote=weekIndex===4?"Reducción de fatiga programada; no es una regla universal.":"Variación semanal explícita de carga/repeticiones/RIR para el objetivo seleccionado.";
+  e.loadLevel=phase.loadLevel;
+  applyLoadToExercise(e,e.loadLevel,{goal,level,weekIndex});
+ }));
+ return plan;
 }
-function generateRoutine(days,level,goal,focus){
-  const n=Number(days);
-  if(state.sessions.length&&!confirm("Ya existen sesiones registradas. La regeneración cambiará la planificación actual, pero conservará el historial. ¿Continuar?"))return false;
-  const profile={...state.profile,days:String(n),level,goal,focus};
-  state.profile={...state.profile,days:String(n),level,goal,focus};
-  state.planMeta={days:n,level,goal,focus,generated:true,engine:"Evidence Training Engine 2026",evidenceVersion:EVIDENCE_VERSION};
-  state.weeks.forEach((week,weekIndex)=>{
-    const plan=trainingEngine(n,level,goal,focus,profile,weekIndex);
-    state.routine[week]={};
-    plan.forEach((day,idx)=>{
-      const phase=weekIndex===0?"Base":weekIndex===1||weekIndex===2?"Construcción":weekIndex===3?"Intensificación":"Reducción de fatiga";
-      const exercises=day.exercises.map(e=>{const copy=JSON.parse(JSON.stringify(e));copy.weekRole=phase;return copy;});
-      state.routine[week]["Día "+(idx+1)]={title:day.title,exercises};
-    });
-  });
-  state.selectedWeek="Semana 1";state.selectedDay="Día 1";saveState();return true;
+function generateRoutine(days,level,goal,focus,distribution){
+ const n=Number(days),selected=getDistribution(n,distribution);
+ if(state.sessions.length&&!confirm("Ya existen sesiones registradas. La regeneración cambiará la planificación actual, pero conservará el historial. ¿Continuar?"))return false;
+ const profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
+ state.profile={...state.profile,days:String(n),level,goal,focus,distribution:selected.value};
+ state.planMeta={days:n,level,goal,focus,distribution:selected.value,distributionLabel:selected.label,generated:true,engine:"Evidence Training Engine 2026",evidenceVersion:EVIDENCE_VERSION};
+ state.weeks.forEach((week,weekIndex)=>{
+  const plan=trainingEngine(n,level,goal,focus,profile,weekIndex,selected.value);
+  state.routine[week]={};
+  plan.forEach((day,idx)=>{state.routine[week]["Día "+(idx+1)]={title:day.title,exercises:day.exercises};});
+ });
+ state.selectedWeek="Semana 1";state.selectedDay="Día 1";
+ state.ui=state.ui||{};state.ui.generator=state.ui.generator||{};state.ui.generator.distribution=selected.value;
+ saveState();return true;
 }
-
+function syncRegisterToPlanner(){
+  const r=ensureRegistrationState();
+  if(r.editingSessionId)return r;
+  const week=state.selectedWeek,day=state.selectedDay;
+  if(state.routine[week]?.[day]){
+    r.week=week;r.sessionKey=day;r.modality=modalityForDays(state.planMeta?.days||state.profile?.days||3);
+  }
+  return r;
+}
 function go(view){
   try{ collectRegisterDraft(); updateManualFields($("#routineList"), "routine"); }catch(e){}
+  if(view==="registrar")syncRegisterToPlanner();
   $$(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   $$(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+view));
   const titles={inicio:["Inicio","Plataforma pública de entrenamiento inteligente."],formulario:["Formulario inicial","Anamnesis básica para orientar tu rutina."],crear:["Crear rutina","Generador de rutina base según días, objetivo y énfasis."],rutina:["Mi rutina","Revisa y edita tu planificación semanal."],registrar:["Registrar","Anota tu entrenamiento real."],progreso:["Progreso","Revisa series, historial y recomendaciones."],importar:["Importar rutina","Importa rutinas personalizadas preparadas por Martin o una planificación externa."],personalizado:["Personalizado","Solicita una rutina adaptada a ti."],ajustes:["Ajustes","Gestión local de la app."]};
@@ -381,7 +468,18 @@ function evaluateRisk(p){
 
 function renderScreening(){const r=evaluateRisk(state.profile),box=$("#screeningResult"); if(!box)return; box.className="decision "+r.className; box.innerHTML=`<strong>Resultado orientativo: ${r.level}</strong><br>${r.msg}`;}
 function showValidation(errors){const box=$("#screeningResult"); box.className="decision red form-error"; box.innerHTML=`<strong>Faltan datos obligatorios:</strong><ul class="form-error-list">${errors.map(e=>`<li>${e}</li>`).join("")}</ul>`;}
-function renderSplitPreview(){const days=$("#generatorDays")?.value||"3",focus=$("#generatorFocus")?.value||"general",goal=$("#generatorGoal")?.value||"Ganar masa muscular",split=splitFor(days,focus,goal),box=$("#splitPreview"); if(!box)return; box.innerHTML=split.map((name,i)=>`<div class="split-day"><h4>Día ${i+1} · ${name}</h4><p>${summaryForSplit(name)}</p></div>`).join("");}
+function renderDistributionOptions(){
+ const days=Number($("#generatorDays")?.value||3),sel=$("#generatorDistribution"),current=state.planMeta?.distribution||defaultDistributionForDays(days);
+ if(!sel)return;
+ const opts=distributionOptionsForDays(days);
+ sel.innerHTML=opts.map(o=>`<option value="${escapeHtml(o.value)}" ${o.value===current?"selected":""}>${escapeHtml(o.label)}</option>`).join("");
+ if(!opts.some(o=>o.value===current))sel.value=opts[0].value;
+}
+function renderSplitPreview(){
+ const days=Number($("#generatorDays")?.value||3),focus=$("#generatorFocus")?.value||"general",goal=$("#generatorGoal")?.value||"Ganar masa muscular",distribution=$("#generatorDistribution")?.value||defaultDistributionForDays(days),opt=getDistribution(days,distribution),split=splitFor(days,focus,goal,opt.value),box=$("#splitPreview");
+ if(!box)return;
+ box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista. Prime OS distribuye el trabajo semanal según el objetivo; Full Body y Split no se presentan como ganadores universales.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión · Semana 4 Intensificación · Semana 5 Reducción de fatiga.</div>`;
+}
 function renderSelectors(){ $("#weekSelect").innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${w}</option>`).join(""); const days=Object.keys(state.routine[state.selectedWeek]||{}),list=days.length?days:Array.from({length:state.planMeta.days||3},(_,i)=>`Día ${i+1}`); if(!list.includes(state.selectedDay))state.selectedDay=list[0]||"Día 1"; $("#daySelect").innerHTML=list.map(d=>`<option ${d===state.selectedDay?"selected":""}>${d}</option>`).join("");}
 function currentDayObj(){return state.routine[state.selectedWeek]?.[state.selectedDay]||{title:"Sin rutina",exercises:[]};}
 function ensureCurrentDay(){if(!state.routine[state.selectedWeek])state.routine[state.selectedWeek]={}; if(!state.routine[state.selectedWeek][state.selectedDay])state.routine[state.selectedWeek][state.selectedDay]={title:"Día personalizado",exercises:[]}; return state.routine[state.selectedWeek][state.selectedDay];}
@@ -419,7 +517,7 @@ function libraryCard(e,idx,mode="routine"){
         <div class="library-info-row"><strong>Aparato</strong><span>${escapeHtml(e.equipment)}</span></div>
         <div class="library-info-row"><strong>Objetivo</strong><span>${escapeHtml(e.objective)}</span></div>
         <div class="library-info-row"><strong>Series / reps</strong><span>${e.sets} series · ${escapeHtml(e.reps)} · descanso ${escapeHtml(e.rest)}</span></div>
-        <div class="library-info-row"><strong>RIR objetivo</strong><span>${escapeHtml(e.targetRir||"—")}</span></div><div class="library-info-row"><strong>Intensidad</strong><span>${escapeHtml(e.loadGuide || "Punto de partida adaptable al objetivo y RIR.")}</span></div><div class="library-info-row"><strong>Fundamento del motor</strong><span>${escapeHtml(e.trainingRationale||"Prescripción adaptable según objetivo, carga y contexto.")}</span></div>${e.restrictionNote?`<div class="library-info-row"><strong>Revisión por restricciones</strong><span>${escapeHtml(e.restrictionNote)}</span></div>`:""}
+        <div class="library-info-row"><strong>RIR objetivo</strong><span>${escapeHtml(e.targetRir||"—")}</span></div><div class="library-info-row"><strong>Intensidad</strong><span>${escapeHtml(e.loadGuide || "Punto de partida adaptable al objetivo y RIR.")}</span></div><div class="library-info-row"><strong>Fundamento del motor</strong><span>${escapeHtml(e.trainingRationale||"Prescripción adaptable según objetivo, carga y contexto.")}</span></div><div class="library-info-row"><strong>Fuentes aplicadas</strong><span>${escapeHtml(evidenceRefText(e.evidenceRefs||[]))}</span></div>${e.restrictionNote?`<div class="library-info-row"><strong>Revisión por restricciones</strong><span>${escapeHtml(e.restrictionNote)}</span></div>`:""}
         <div class="library-info-row"><strong>Cómo hacerlo</strong><span>${escapeHtml(e.how)}</span></div>
         <div class="library-info-row"><strong>Recomendación</strong><span>${escapeHtml(e.recommendation)}</span></div>
       </div>
@@ -440,7 +538,7 @@ function libraryCard(e,idx,mode="routine"){
         <textarea data-field="note" placeholder="Nota extra">${escapeHtml(e.note||"")}</textarea>
       </div>
     </div>
-    ${mode==="register" ? `<div class="register-sets">${Array.from({length:Number(e.sets)||1},(_,s)=>`<div class="set-line"><span>Serie ${s+1}</span><input data-set="${s}" data-field="weight" placeholder="Peso"><input data-set="${s}" data-field="repsDone" placeholder="Reps"><input data-set="${s}" data-field="rir" placeholder="RIR"><input data-set="${s}" data-field="pain" placeholder="Dolor 0-10"><label><input data-set="${s}" data-field="done" type="checkbox"> Hecha</label></div>`).join("")}</div><textarea data-field="sessionNotes" placeholder="Observaciones del ejercicio"></textarea>` : ""}
+    ${mode==="register" ? `<div class="register-sets">${Array.from({length:Number(e.sets)||1},(_,s)=>`<div class="set-line" data-set-index="${s}"><span>Serie ${s+1}</span><input data-set="${s}" data-field="weight" placeholder="Peso"><input data-set="${s}" data-field="repsDone" placeholder="Reps"><input data-set="${s}" data-field="rir" placeholder="RIR"><input data-set="${s}" data-field="pain" placeholder="Dolor 0-10"><label><input data-set="${s}" data-field="done" type="checkbox"> Hecha</label><button type="button" class="ghost set-remove" data-set-index="${s}">Quitar serie</button></div>`).join("")}</div><div class="set-actions"><button type="button" class="ghost set-add">+ Añadir serie</button></div><textarea data-field="sessionNotes" placeholder="Observaciones del ejercicio"></textarea>` : ""}
     <div class="actions-row"><button class="danger ${mode==="register"?"remove-register-exercise":"remove-exercise"}">Quitar</button></div>
   </div>`;
 }
@@ -505,6 +603,28 @@ function attachLibraryEvents(container, mode="routine"){
   }));
 
   container.querySelectorAll(".manual-toggle").forEach(btn=>btn.addEventListener("click",()=>btn.nextElementSibling.classList.toggle("open")));
+  if(mode==="register"){
+    container.querySelectorAll(".set-add").forEach(btn=>btn.addEventListener("click",()=>{
+      const row=btn.closest(".exercise-row");if(!row)return;
+      const lines=row.querySelectorAll(".set-line"),template=lines[lines.length-1];if(!template)return;
+      const next=lines.length,clone=template.cloneNode(true);clone.dataset.setIndex=String(next);
+      clone.querySelectorAll("[data-set]").forEach(el=>el.dataset.set=String(next));
+      clone.querySelectorAll("input").forEach(el=>{if(el.type==="checkbox")el.checked=false;else el.value="";});
+      const rm=clone.querySelector(".set-remove");if(rm)rm.dataset.setIndex=String(next);
+      row.querySelector(".register-sets")?.appendChild(clone);collectRegisterDraft();
+    }));
+    container.querySelectorAll(".set-remove").forEach(btn=>btn.addEventListener("click",()=>{
+      const row=btn.closest(".exercise-row");if(!row)return;
+      const lines=row.querySelectorAll(".set-line");if(lines.length<=1){alert("Cada ejercicio debe conservar al menos una serie.");return;}
+      btn.closest(".set-line")?.remove();
+      row.querySelectorAll(".set-line").forEach((line,i)=>{
+        line.dataset.setIndex=String(i);line.querySelectorAll("[data-set]").forEach(el=>el.dataset.set=String(i));
+        const label=line.querySelector("span");if(label)label.textContent=`Serie ${i+1}`;
+        const rm=line.querySelector(".set-remove");if(rm)rm.dataset.setIndex=String(i);
+      });
+      collectRegisterDraft();
+    }));
+  }
   container.querySelectorAll("[data-field]").forEach(el=>{el.addEventListener("input",()=>updateManualFields(container, mode));el.addEventListener("change",()=>updateManualFields(container, mode));});
 }
 function updateManualFields(container, mode="routine"){
@@ -533,13 +653,13 @@ function renderRoutine(){
 
 function localDateISO(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
 function weekdayLabel(dateISO){try{return new Intl.DateTimeFormat("es-CL",{weekday:"long"}).format(new Date(dateISO+"T12:00:00"));}catch(e){return "";}}
-function modalityForDays(days){const n=Number(days);return n===1?"Full Body":n===2?"Full Body":n===3?"3 días":n===4?"4 días":n===5?"5 días":"6 días";}
+function modalityForDays(days){const n=Math.max(1,Math.min(6,Number(days)||3));return `${n} días`;}
 function ensureRegistrationState(){
   state.ui=state.ui||{};state.ui.register=state.ui.register||{};
-  const r=state.ui.register;
+  const r=state.ui.register,planDays=Number(state.planMeta?.days||state.profile?.days||3);
   r.week=state.weeks.includes(r.week)?r.week:(state.selectedWeek||state.weeks[0]||"Semana 1");
   if(!r.performedDate)r.performedDate=localDateISO();
-  r.modality=r.modality||modalityForDays(state.planMeta?.days||3);
+  r.modality=modalityForDays(planDays);
   const days=Object.keys(state.routine[r.week]||{});
   r.sessionKey=days.includes(r.sessionKey)?r.sessionKey:(days[0]||"Día 1");
   return r;
@@ -555,24 +675,24 @@ function setRegisterSelection(field,value){
     const days=Object.keys(state.routine[value]||{});
     if(!days.includes(r.sessionKey))r.sessionKey=days[0]||"Día 1";
   }
-  if(field==="modality"){
+  if(field==="sessionKey"){
     const days=Object.keys(state.routine[r.week]||{});
     if(!days.includes(r.sessionKey))r.sessionKey=days[0]||"Día 1";
   }
   saveState();renderAll();
 }
 function populateRegisterControls(){
-  const r=ensureRegistrationState();
+  const r=ensureRegistrationState(),planDays=Number(state.planMeta?.days||state.profile?.days||3),dist=distributionLabel(planDays,state.planMeta?.distribution);
   const week=$("#registerWeek"),date=$("#registerPerformedDate"),mod=$("#registerModality"),ses=$("#registerSession"),status=$("#registerContextStatus");
   if(week)week.innerHTML=state.weeks.map(w=>`<option value="${escapeHtml(w)}" ${w===r.week?"selected":""}>${escapeHtml(w)}</option>`).join("");
   if(date)date.value=r.performedDate||localDateISO();
-  if(mod)mod.value=r.modality||modalityForDays(state.planMeta?.days||3);
+  if(mod)mod.innerHTML=`<option value="${escapeHtml(modalityForDays(planDays))}" selected>${escapeHtml(modalityForDays(planDays))}</option>`;
   if(ses){
     const days=Object.entries(state.routine[r.week]||{});
     ses.innerHTML=days.length?days.map(([key,obj])=>`<option value="${escapeHtml(key)}" ${key===r.sessionKey?"selected":""}>${escapeHtml(obj.title||key)} · ${escapeHtml(key)}</option>`).join(""):`<option value="Día 1">Día 1 · sin rutina</option>`;
   }
   if(status){
-    status.innerHTML=`<strong>${escapeHtml(weekdayLabel(r.performedDate)||"Día")}</strong> · realizado el ${escapeHtml(r.performedDate)} · planificación: ${escapeHtml(r.sessionKey)}`;
+    status.innerHTML=`<strong>${escapeHtml(weekdayLabel(r.performedDate)||"Día")}</strong> · realizado el ${escapeHtml(r.performedDate)} · planificación: ${escapeHtml(r.sessionKey)} · distribución: ${escapeHtml(dist)}`;
   }
 }
 
@@ -594,7 +714,6 @@ function routineExerciseKey(e, idx){
 }
 function collectRegisterDraft(){
   const draft=getDraft();
-  const day=currentDayObj();
 
   $$("#registerList .exercise-row").forEach(row=>{
     const idx=Number(row.dataset.index);
@@ -613,7 +732,6 @@ function collectRegisterDraft(){
       if(manualReps){ex.reps=manualReps;ex.userOverrideReps=true;}
       if(manualRest){ex.rest=manualRest;ex.userOverrideRest=true;}
       applyLoadToExercise(ex,level,{goal:state.planMeta?.goal,level:state.planMeta?.level,weekIndex:0});
-      return ex;
       return ex;
     };
 
@@ -851,7 +969,7 @@ function addExercise(fromRegister=false){
 }
 
 function exportBackupJson(){
-  const payload={app:"Prime OS Público",appVersion:"2.0",schemaVersion:2,evidenceVersion:EVIDENCE_VERSION,exportedAt:new Date().toISOString(),profile:state.profile,weeks:state.weeks,selectedWeek:state.selectedWeek,selectedDay:state.selectedDay,planMeta:state.planMeta,routine:state.routine,sessions:state.sessions,sessionDrafts:state.sessionDrafts,ui:state.ui};
+  const payload={app:"Prime OS Público",appVersion:"2.1",schemaVersion:2,evidenceVersion:EVIDENCE_VERSION,evidenceKeys:EVIDENCE_KEYS,distributionPolicies:DISTRIBUTION_POLICIES,exportedAt:new Date().toISOString(),profile:state.profile,weeks:state.weeks,selectedWeek:state.selectedWeek,selectedDay:state.selectedDay,planMeta:state.planMeta,routine:state.routine,sessions:state.sessions,sessionDrafts:state.sessionDrafts,ui:state.ui};
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}));a.download="Prime_OS_backup.json";a.click();URL.revokeObjectURL(a.href);
 }
 function validateBackup(data){
@@ -891,9 +1009,20 @@ function bindControls(){
   $("#addWeekBtn").addEventListener("click",addWeek); $("#exportBtn").addEventListener("click",exportExcel);
   $("#saveFormBtn").addEventListener("click",()=>{const errors=validateProfile(); if(errors.length){showValidation(errors);return;} renderScreening();renderHome();alert("Formulario guardado.");});
   $("#exportAnamnesisBtn")?.addEventListener("click",exportAnamnesisWord);
-  $("#generateFromFormBtn").addEventListener("click",()=>{const errors=validateProfile();if(errors.length){showValidation(errors);return;}generateRoutine(state.profile.days,state.profile.level,state.profile.goal,state.profile.focus);$("#generatorDays").value=state.profile.days;$("#generatorLevel").value=state.profile.level;$("#generatorGoal").value=state.profile.goal;$("#generatorFocus").value=state.profile.focus;go("rutina");});
-  ["generatorDays","generatorFocus","generatorLevel","generatorGoal"].forEach(id=>$("#"+id).addEventListener("change",renderSplitPreview));
-  $("#generateRoutineBtn").addEventListener("click",()=>{generateRoutine($("#generatorDays").value,$("#generatorLevel").value,$("#generatorGoal").value,$("#generatorFocus").value);go("rutina");});
+  $("#generateFromFormBtn").addEventListener("click",()=>{const errors=validateProfile();if(errors.length){showValidation(errors);return;}const dist=state.profile.distribution||defaultDistributionForDays(state.profile.days);const ok=generateRoutine(state.profile.days,state.profile.level,state.profile.goal,state.profile.focus,dist);$("#generatorDays").value=state.profile.days;$("#generatorLevel").value=state.profile.level;$("#generatorGoal").value=state.profile.goal;$("#generatorFocus").value=state.profile.focus;renderDistributionOptions();$("#generatorDistribution").value=dist;if(ok)go("rutina");});
+  ["generatorDays","generatorFocus","generatorLevel","generatorGoal"].forEach(id=>$("#"+id).addEventListener("change",()=>{
+    if(id==="generatorDays")renderDistributionOptions();
+    renderSplitPreview();
+  }));
+  $("#generatorDistribution")?.addEventListener("change",()=>{
+    const days=Number($("#generatorDays").value||3),value=$("#generatorDistribution").value;
+    state.planMeta=state.planMeta||{};state.planMeta.distribution=value;state.planMeta.distributionLabel=distributionLabel(days,value);
+    state.profile=state.profile||{};state.profile.distribution=value;saveState();renderSplitPreview();
+  });
+  $("#generateRoutineBtn").addEventListener("click",()=>{
+    const ok=generateRoutine($("#generatorDays").value,$("#generatorLevel").value,$("#generatorGoal").value,$("#generatorFocus").value,$("#generatorDistribution")?.value);
+    if(ok)go("rutina");
+  });
   $("#goPersonalBtn").addEventListener("click",()=>go("personalizado")); $("#addExerciseBtn").addEventListener("click",()=>addExercise(false)); $("#updateSessionDraftBtn")?.addEventListener("click",()=>{collectRegisterDraft(); alert("Cambios actualizados en el registro. Puedes cambiar de pestaña sin perderlos."); renderAll();}); $("#saveSessionBtn").addEventListener("click",saveSession);
   $("#clearBtn").addEventListener("click",()=>{if(confirm("¿Borrar todos los datos locales?")){localStorage.removeItem(STORAGE_KEY);state=defaultState();saveState();renderAll();go("inicio");}});
   $("#resetDemoBtn").addEventListener("click",()=>{state=defaultState();saveState();renderAll();go("inicio");});
@@ -910,5 +1039,5 @@ function bindControls(){
   $("#backupRestoreBtn")?.addEventListener("click",()=>$("#importInput")?.click());
   $("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme);saveState();}));
 }
-function renderAll(){applyTheme(state.ui?.theme||"azul");renderSelectors();fillProfile();renderSplitPreview();renderHome();renderRoutine();renderRegister();renderProgress();renderEvidenceSettings();}
+function renderAll(){applyTheme(state.ui?.theme||"azul");renderSelectors();fillProfile();renderDistributionOptions();renderSplitPreview();renderHome();renderRoutine();renderRegister();renderProgress();renderEvidenceSettings();}
 document.addEventListener("DOMContentLoaded",()=>{bindLaunch();bindNav();bindControls();renderAll();});
