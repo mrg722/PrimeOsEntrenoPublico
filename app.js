@@ -717,7 +717,8 @@ function libraryCard(e,idx,mode="routine"){
   hydrateExercise(e);
   return `<div class="exercise-row" data-index="${idx}">
     <h4>${idx+1}. ${escapeHtml(e.name)}</h4>
-    <div class="exercise-meta"><span class="pill">${escapeHtml(e.group)}</span><span class="pill">Sugerido: ${e.sets} series</span><span class="pill">${escapeHtml(e.reps)}</span><span class="pill">${escapeHtml(e.rest)}</span><span class="pill">RIR objetivo: ${escapeHtml(e.targetRir||"—")}</span></div>
+    <div class="exercise-meta"><span class="pill">${escapeHtml(e.group)}</span><span class="pill">Propuesto: ${e.sets} series</span><span class="pill">${escapeHtml(e.reps)}</span><span class="pill">${escapeHtml(e.rest)}</span><span class="pill">RIR objetivo: ${escapeHtml(e.targetRir||"—")}</span></div>
+    ${mode==="register"?`<div class="register-prescription"><strong>Prescripción propuesta</strong><span>${e.sets} series · ${escapeHtml(e.reps)} reps · RIR objetivo ${escapeHtml(e.targetRir||"—")} · descanso ${escapeHtml(e.rest)} · ${escapeHtml(e.periodizationNote||e.phase||"fase del programa")}</span></div>`:""}
     <div class="library-card">
       <div class="library-grid three">
         <label>Grupo muscular
@@ -759,7 +760,7 @@ function libraryCard(e,idx,mode="routine"){
         <textarea data-field="note" placeholder="Nota extra">${escapeHtml(e.note||"")}</textarea>
       </div>
     </div>
-    ${mode==="register" ? `<div class="register-sets">${Array.from({length:Number(e.sets)||1},(_,s)=>`<div class="set-line" data-set-index="${s}"><span>Serie ${s+1}</span><input data-set="${s}" data-field="weight" placeholder="Peso"><input data-set="${s}" data-field="repsDone" placeholder="Reps"><input data-set="${s}" data-field="rir" placeholder="RIR"><input data-set="${s}" data-field="pain" placeholder="Dolor 0-10"><label><input data-set="${s}" data-field="done" type="checkbox"> Hecha</label><button type="button" class="ghost set-remove" data-set-index="${s}">Quitar serie</button></div>`).join("")}</div><div class="set-actions"><button type="button" class="ghost set-add">+ Añadir serie</button></div><textarea data-field="sessionNotes" placeholder="Observaciones del ejercicio"></textarea>` : ""}
+    ${mode==="register" ? `<div class="register-sets">${Array.from({length:Number(e.sets)||1},(_,s)=>`<div class="set-line" data-set-index="${s}"><span>Serie ${s+1}<small>Objetivo: ${escapeHtml(e.reps)} · RIR ${escapeHtml(e.targetRir||"—")}</small></span><input data-set="${s}" data-field="weight" placeholder="Peso real"><input data-set="${s}" data-field="repsDone" placeholder="Reps reales"><input data-set="${s}" data-field="rir" placeholder="RIR real"><input data-set="${s}" data-field="pain" placeholder="Dolor 0-10"><label><input data-set="${s}" data-field="done" type="checkbox"> Hecha</label><button type="button" class="ghost set-remove" data-set-index="${s}">Quitar serie</button></div>`).join("")}</div><div class="set-actions"><button type="button" class="ghost set-add">+ Añadir serie</button></div><textarea data-field="sessionNotes" placeholder="Observaciones del ejercicio"></textarea>` : ""}
     <div class="actions-row"><button class="danger ${mode==="register"?"remove-register-exercise":"remove-exercise"}">Quitar</button></div>
   </div>`;
 }
@@ -1051,12 +1052,57 @@ function updateRegisterDraftButtonText(){
   btn.textContent="Actualizar cambios";
 }
 
+function registerExerciseAdder(){
+  const group=state.ui?.registerAdderGroup||"Pecho";
+  const selectedName=state.ui?.registerAdderExercise||EXERCISE_LIBRARY[group]?.[0]?.name||"";
+  return `<div class="register-add-panel">
+    <div class="register-add-head"><strong>Añadir ejercicio a esta sesión</strong><span>Se agrega solo al registro de esta sesión y no modifica la rutina maestra. Su prescripción de series, reps, RIR y descanso usa el mismo objetivo y fase.</span></div>
+    <div class="register-add-grid">
+      <label>Músculo<select id="registerAddGroup">${MUSCLES.map(m=>`<option ${m===group?"selected":""}>${escapeHtml(m)}</option>`).join("")}</select></label>
+      <label>Ejercicio<select id="registerAddExercise">${exerciseOptions(group,selectedName)}</select></label>
+      <button type="button" class="ghost" id="registerAddConfirm">+ Añadir ejercicio</button>
+    </div>
+  </div>`;
+}
+function attachRegisterExerciseAdder(box){
+  const group=box.querySelector("#registerAddGroup"),name=box.querySelector("#registerAddExercise"),btn=box.querySelector("#registerAddConfirm");
+  group?.addEventListener("change",()=>{
+    state.ui=state.ui||{};
+    state.ui.registerAdderGroup=group.value;
+    state.ui.registerAdderExercise=EXERCISE_LIBRARY[group.value]?.[0]?.name||"";
+    if(name)name.innerHTML=exerciseOptions(group.value,state.ui.registerAdderExercise);
+    saveState();
+  });
+  name?.addEventListener("change",()=>{
+    state.ui=state.ui||{};
+    state.ui.registerAdderExercise=name.value;
+    saveState();
+  });
+  btn?.addEventListener("click",()=>{
+    const r=ensureRegistrationState();
+    const weekIndex=Math.max(0,Number(String(r.week||"Semana 1").match(/\d+/)?.[0]||1)-1);
+    const goal=state.planMeta?.goal||"Salud general",level=state.planMeta?.level||"Intermedio";
+    const g=group?.value||"Pecho",n=name?.value||"";
+    const item=(EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g]?.[0];
+    if(!item)return;
+    const ex=makeExerciseFromLibrary(item);
+    hydrateExercise(ex,{goal,level,weekIndex});
+    ex.sets=prescriptionSets(ex,goal,level,weekIndex);
+    ex.loadLevel=periodizationForWeek(goal,weekIndex).loadLevel;
+    applyLoadToExercise(ex,ex.loadLevel,{goal,level,weekIndex});
+    const draft=getDraft();
+    draft.extra=draft.extra||[];
+    draft.extra.unshift({exercise:ex,sets:[],notes:""});
+    saveState();
+    renderAll();
+  });
+}
 function renderRegister(){
-  if(state.planMeta?.generated)syncRegisterToPlanner();
+  ensureGeneratedRoutineIntegrity();
   const plan=getRegisterPlan(),day=plan.obj,box=$("#registerList");if(!box)return;
   populateRegisterControls();
   const draft=getDraft();
-  const top=`<div class="register-actions-top"><button id="addRegisterExerciseBtn" class="ghost">+ Añadir ejercicio a esta sesión</button></div>`;
+  const top=registerExerciseAdder();
   const routineRows=(day.exercises||[]).map((e,idx)=>{
     hydrateExercise(e);
     const key=routineExerciseKey(e,idx),d=draft.routine[key],renderExercise=d?.exercise?d.exercise:e;
@@ -1069,7 +1115,7 @@ function renderRegister(){
     if(saved?.sets)row.querySelectorAll(".set-line").forEach((line,i)=>applyDraftToSetLine(line,saved.sets[i]));
     if(saved?.notes&&row.querySelector('[data-field="sessionNotes"]'))row.querySelector('[data-field="sessionNotes"]').value=saved.notes;
   });
-  $("#addRegisterExerciseBtn")?.addEventListener("click",()=>addExercise(true));
+  attachRegisterExerciseAdder(box);
   attachLibraryEvents(box,"register");
   box.querySelectorAll("input,select,textarea").forEach(el=>{el.addEventListener("input",collectRegisterDraft);el.addEventListener("change",collectRegisterDraft);});
   box.querySelectorAll(".remove-register-exercise").forEach(btn=>btn.addEventListener("click",()=>{
