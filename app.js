@@ -553,7 +553,14 @@ function generateRoutine(days,level,goal,focus,distribution){
     }
   };
   state.weeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
-  state.routine={};
+  state.weeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
+  const generatedRoutine=buildGeneratedRoutine(n,level,goal,focus,selected.value,profile,state.weeks);
+  if(!validateGeneratedRoutineObject(generatedRoutine,n,state.weeks)){
+    console.error("Prime OS: generatedRoutine failed structural validation",{days:n,goal,level,focus,distribution:selected.value});
+    alert("El generador no pudo completar una rutina válida de 6 semanas. No se guardaron cambios incompletos.");
+    return false;
+  }
+  state.routine=generatedRoutine;
   // A new plan is a new planning context: do not leave Registrar attached to an old edited session.
   state.ui=state.ui||{};
   state.ui.register=state.ui.register||{};
@@ -562,11 +569,6 @@ function generateRoutine(days,level,goal,focus,distribution){
   state.ui.register.sessionKey="Día 1";
   state.ui.register.performedDate=state.ui.register.performedDate||localDateISO();
   state.ui.register.modality=modalityForDays(n);
-  state.weeks.forEach((week,weekIndex)=>{
-    const plan=trainingEngine(n,level,goal,focus,profile,weekIndex,selected.value);
-    state.routine[week]={};
-    plan.forEach((day,idx)=>state.routine[week]["Día "+(idx+1)]={title:day.title,exercises:day.exercises,phase:periodizationForWeek(goal,weekIndex).phase,weekIndex});
-  });
   state.selectedWeek="Semana 1";state.selectedDay="Día 1";
   state.ui=state.ui||{};state.ui.generator=state.ui.generator||{};state.ui.generator.distribution=selected.value;
   saveState();return true;
@@ -591,16 +593,64 @@ function syncRegisterToPlanner(){
   saveState();
   return r;
 }
-function reconcileGeneratedPlan(){
-  const days=Number(state.planMeta?.days||state.profile?.days||0);
-  const weeks=Array.isArray(state.weeks)?state.weeks:[];
-  if(!days||!weeks.length||!state.planMeta?.generated)return false;
-  const validWeeks=weeks.filter(w=>{
-    const week=state.routine?.[w]||{};
-    const dayKeys=Object.keys(week);
-    return dayKeys.length===days && dayKeys.every(k=>(week[k]?.exercises||[]).length>0);
+function validateGeneratedRoutineObject(routine,days,weeks){
+  const n=Number(days)||0,list=Array.isArray(weeks)?weeks:[];
+  if(!n||list.length!==6||!routine)return false;
+  return list.every(w=>{
+    const week=routine[w]||{},keys=Object.keys(week);
+    return keys.length===n && keys.every(k=>{
+      const exercises=week[k]?.exercises||[];
+      return exercises.length>0 && exercises.every(e=>{
+        const sets=Number(e.sets),reps=String(e.reps||"").trim(),rir=String(e.targetRir||"").trim(),rest=String(e.rest||"").trim();
+        return Number.isFinite(sets)&&sets>=1&&reps&&rir&&rest;
+      });
+    });
   });
-  return validWeeks.length===weeks.length;
+}
+function buildGeneratedRoutine(days,level,goal,focus,distribution,profile,weeks){
+  const n=Number(days),selected=getDistribution(n,distribution);
+  const list=Array.isArray(weeks)&&weeks.length?weeks:["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
+  const routine={};
+  list.forEach((week,weekIndex)=>{
+    const plan=trainingEngine(n,level,goal,focus,profile,weekIndex,selected.value);
+    routine[week]={};
+    plan.forEach((day,idx)=>{
+      routine[week]["Día "+(idx+1)]={
+        title:day.title,
+        exercises:day.exercises,
+        phase:periodizationForWeek(goal,weekIndex).phase,
+        weekIndex
+      };
+    });
+  });
+  return routine;
+}
+function ensurePlannerSelection(){
+  const validWeeks=(state.weeks||[]).filter(w=>Object.keys(state.routine?.[w]||{}).length);
+  if(!validWeeks.length)return false;
+  if(!validWeeks.includes(state.selectedWeek))state.selectedWeek=validWeeks[0];
+  const days=Object.keys(state.routine?.[state.selectedWeek]||{});
+  if(!days.includes(state.selectedDay))state.selectedDay=days[0]||"Día 1";
+  return true;
+}
+function ensureGeneratedRoutineIntegrity(){
+  if(!state.planMeta?.generated)return ensurePlannerSelection();
+  const days=Number(state.planMeta?.days||state.profile?.days||0);
+  if(validateGeneratedRoutineObject(state.routine,days,state.weeks)){
+    ensurePlannerSelection();
+    return true;
+  }
+  const profile={...state.profile,days:String(days),level:state.planMeta.level||state.profile?.level||"Intermedio",goal:state.planMeta.goal||state.profile?.goal||"Salud general",focus:state.planMeta.focus||state.profile?.focus||"general",distribution:state.planMeta.distribution||defaultDistributionForDays(days)};
+  const repaired=buildGeneratedRoutine(days,profile.level,profile.goal,profile.focus,profile.distribution,profile,state.weeks);
+  if(!validateGeneratedRoutineObject(repaired,days,state.weeks))return false;
+  state.routine=repaired;
+  ensurePlannerSelection();
+  saveState();
+  console.warn("Prime OS: se reparó una planificación generada incompleta desde el motor determinista.");
+  return true;
+}
+function reconcileGeneratedPlan(){
+  return ensureGeneratedRoutineIntegrity();
 }
 function go(view){
   try{ collectRegisterDraft(); updateManualFields($("#routineList"), "routine"); }catch(e){}
@@ -643,7 +693,15 @@ function renderSplitPreview(){
  if(!box)return;
  box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista y acotada. Prime OS no sortea sesiones: usa combinaciones predefinidas por días y rota sólo variantes internas curadas dentro del patrón elegido.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión de dosis · Semana 4 Intensificación · Semana 5 Consolidación · Semana 6 Reducción de fatiga.</div>`;
 }
-function renderSelectors(){ $("#weekSelect").innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${w}</option>`).join(""); const days=Object.keys(state.routine[state.selectedWeek]||{}),list=days.length?days:Array.from({length:state.planMeta.days||3},(_,i)=>`Día ${i+1}`); if(!list.includes(state.selectedDay))state.selectedDay=list[0]||"Día 1"; $("#daySelect").innerHTML=list.map(d=>`<option ${d===state.selectedDay?"selected":""}>${d}</option>`).join("");}
+function renderSelectors(){
+  ensureGeneratedRoutineIntegrity();
+  const weekSelect=$("#weekSelect");
+  if(weekSelect)weekSelect.innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${escapeHtml(w)}</option>`).join("");
+  const days=Object.keys(state.routine?.[state.selectedWeek]||{}),list=days.length?days:Array.from({length:Number(state.planMeta?.days||3)},(_,i)=>`Día ${i+1}`);
+  if(!list.includes(state.selectedDay))state.selectedDay=list[0]||"Día 1";
+  const daySelect=$("#daySelect");
+  if(daySelect)daySelect.innerHTML=list.map(d=>`<option ${d===state.selectedDay?"selected":""}>${escapeHtml(d)}</option>`).join("");
+}
 function currentDayObj(){return state.routine[state.selectedWeek]?.[state.selectedDay]||{title:"Sin rutina",exercises:[]};}
 function ensureCurrentDay(){if(!state.routine[state.selectedWeek])state.routine[state.selectedWeek]={}; if(!state.routine[state.selectedWeek][state.selectedDay])state.routine[state.selectedWeek][state.selectedDay]={title:"Día personalizado",exercises:[]}; return state.routine[state.selectedWeek][state.selectedDay];}
 function renderEvidenceSettings(){
@@ -806,11 +864,53 @@ function updateManualFields(container, mode="routine"){
   });
   saveState();
 }
+function routineExerciseAdder(){
+  const group=state.ui?.routineAdderGroup||"Pecho";
+  const selectedName=state.ui?.routineAdderExercise||EXERCISE_LIBRARY[group]?.[0]?.name||"";
+  return `<div class="routine-add-panel">
+    <div><strong>Añadir ejercicio a la rutina maestra</strong><span>Selecciona músculo y ejercicio. La prescripción se calcula según objetivo, semana y fase actual.</span></div>
+    <div class="routine-add-grid">
+      <label>Músculo<select id="routineAddGroup">${MUSCLES.map(m=>`<option ${m===group?"selected":""}>${escapeHtml(m)}</option>`).join("")}</select></label>
+      <label>Ejercicio<select id="routineAddExercise">${exerciseOptions(group,selectedName)}</select></label>
+      <button type="button" class="ghost" id="routineAddConfirm">+ Añadir a rutina</button>
+    </div>
+  </div>`;
+}
+function attachRoutineExerciseAdder(box){
+  const group=box.querySelector("#routineAddGroup"),name=box.querySelector("#routineAddExercise"),btn=box.querySelector("#routineAddConfirm");
+  group?.addEventListener("change",()=>{
+    state.ui=state.ui||{};state.ui.routineAdderGroup=group.value;
+    state.ui.routineAdderExercise=EXERCISE_LIBRARY[group.value]?.[0]?.name||"";
+    if(name)name.innerHTML=exerciseOptions(group.value,state.ui.routineAdderExercise);
+    saveState();
+  });
+  btn?.addEventListener("click",()=>{
+    const g=group?.value||"Pecho",n=name?.value||EXERCISE_LIBRARY[g]?.[0]?.name;
+    const item=(EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g]?.[0];
+    if(!item)return;
+    const day=ensureCurrentDay(),weekIndex=Number(day.weekIndex??0),goal=state.planMeta?.goal||"Salud general",level=state.planMeta?.level||"Intermedio";
+    const ex=makeExerciseFromLibrary(item);
+    hydrateExercise(ex,{goal,level,weekIndex});
+    ex.sets=prescriptionSets(ex,goal,level,weekIndex);
+    ex.loadLevel=periodizationForWeek(goal,weekIndex).loadLevel;
+    applyLoadToExercise(ex,ex.loadLevel,{goal,level,weekIndex});
+    day.exercises.push(ex);
+    state.ui=state.ui||{};state.ui.routineAdderGroup=g;state.ui.routineAdderExercise=n;
+    saveState();renderAll();
+  });
+}
 function renderRoutine(){
+  ensureGeneratedRoutineIntegrity();
+  ensurePlannerSelection();
   const day=currentDayObj(), box=$("#routineList"); if(!box)return;
-  box.innerHTML=`<div class="split-day"><h4>${state.selectedWeek} · ${state.selectedDay} · ${day.title}</h4><p class="small-muted">Selecciona grupo muscular y ejercicio. Prime OS carga automáticamente aparato, objetivo, series, reps, ejecución y recomendación.</p></div>${day.exercises.map((e,idx)=>libraryCard(e,idx,"routine")).join("")}`;
+  const rows=(day.exercises||[]).map((e,idx)=>libraryCard(e,idx,"routine")).join("");
+  box.innerHTML=`<div class="split-day"><h4>${escapeHtml(state.selectedWeek)} · ${escapeHtml(state.selectedDay)} · ${escapeHtml(day.title)}</h4><p class="small-muted">Rutina generada: cada ejercicio trae series, reps, RIR objetivo, descanso, fase y fuentes aplicadas. Puedes editarla sin cambiar el historial.</p></div>${routineExerciseAdder()}${rows||`<div class="warning card"><strong>Este día no tiene ejercicios.</strong><span>Usa el selector de arriba o vuelve a generar la rutina.</span></div>`}`;
+  attachRoutineExerciseAdder(box);
   attachLibraryEvents(box,"routine");
-  box.querySelectorAll(".remove-exercise").forEach(btn=>btn.addEventListener("click",()=>{const idx=Number(btn.closest(".exercise-row").dataset.index);ensureCurrentDay().exercises.splice(idx,1);saveState();renderAll();}));
+  box.querySelectorAll(".remove-exercise").forEach(btn=>btn.addEventListener("click",()=>{
+    const idx=Number(btn.closest(".exercise-row").dataset.index);
+    const current=ensureCurrentDay();current.exercises.splice(idx,1);saveState();renderAll();
+  }));
 }
 
 
@@ -1246,5 +1346,17 @@ function bindControls(){
   $("#backupRestoreBtn")?.addEventListener("click",()=>$("#importInput")?.click());
   $("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme);saveState();}));
 }
-function renderAll(){applyTheme(state.ui?.theme||"azul");renderSelectors();fillProfile();renderDistributionOptions();renderSplitPreview();renderHome();renderRoutine();renderRegister();renderProgress();renderEvidenceSettings();}
+function renderAll(){
+  ensureGeneratedRoutineIntegrity();
+  applyTheme(state.ui?.theme||"azul");
+  renderSelectors();
+  fillProfile();
+  renderDistributionOptions();
+  renderSplitPreview();
+  renderHome();
+  renderRoutine();
+  renderRegister();
+  renderProgress();
+  renderEvidenceSettings();
+}
 document.addEventListener("DOMContentLoaded",()=>{bindLaunch();bindNav();bindControls();renderAll();});
