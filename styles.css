@@ -325,3 +325,57 @@ body[data-theme="negro"] .theme-chip.active{box-shadow:0 0 0 3px rgba(125,133,14
 
 /* Prime OS 2.2 */
 .set-line .set-remove{white-space:nowrap}
+
+
+/* Prime OS 2.4 · generated routine ↔ registration workflow */
+.routine-add-panel,
+.register-add-panel{
+  margin:14px 0 18px;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:rgba(13,17,23,.72);
+  display:grid;
+  gap:12px;
+}
+.routine-add-panel>div:first-child,
+.register-add-head{
+  display:grid;
+  gap:4px;
+}
+.routine-add-panel>div:first-child strong,
+.register-add-head strong{font-size:14px}
+.routine-add-panel>div:first-child span,
+.register-add-head span{color:var(--muted);font-size:12px;line-height:1.5}
+.routine-add-grid,
+.register-add-grid{
+  display:grid;
+  grid-template-columns:minmax(160px,.65fr) minmax(220px,1.2fr) auto;
+  gap:10px;
+  align-items:end;
+}
+.routine-add-grid label,
+.register-add-grid label{display:grid;gap:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.routine-add-grid select,
+.register-add-grid select{width:100%}
+.register-prescription{
+  margin:8px 0 10px;
+  padding:10px 12px;
+  border:1px solid rgba(47,129,247,.28);
+  border-radius:12px;
+  background:rgba(47,129,247,.07);
+  display:grid;
+  gap:3px;
+}
+.register-prescription strong{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent)}
+.register-prescription span{font-size:12px;line-height:1.45;color:var(--text)}
+.set-line>span{display:grid;gap:2px;min-width:130px;font-weight:800}
+.set-line>span small{font-size:10px;color:var(--muted);font-weight:700;line-height:1.25}
+.register-actions-top{display:none}
+@media(max-width:900px){
+  .routine-add-grid,
+  .register-add-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .routine-add-panel,.register-add-panel{padding:12px}
+}
