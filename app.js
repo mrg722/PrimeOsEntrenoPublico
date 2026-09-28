@@ -567,10 +567,28 @@ function syncRegisterToPlanner(){
   const r=ensureRegistrationState();
   if(r.editingSessionId)return r;
   const week=state.selectedWeek,day=state.selectedDay;
-  if(state.routine[week]?.[day]){
-    r.week=week;r.sessionKey=day;r.modality=modalityForDays(state.planMeta?.days||state.profile?.days||3);
+  const plannedWeek=state.routine?.[week];
+  if(plannedWeek && plannedWeek[day]){
+    r.week=week;
+    r.sessionKey=day;
+    r.modality=modalityForDays(state.planMeta?.days||state.profile?.days||3);
+  }else{
+    // Never point Registrar at a stale/nonexistent session after regenerating the plan.
+    const firstWeek=state.weeks.find(w=>Object.keys(state.routine?.[w]||{}).length) || state.weeks[0] || "Semana 1";
+    const firstDay=Object.keys(state.routine?.[firstWeek]||{})[0] || "Día 1";
+    r.week=firstWeek;
+    r.sessionKey=firstDay;
+    r.modality=modalityForDays(state.planMeta?.days||state.profile?.days||3);
   }
+  saveState();
   return r;
+}
+function reconcileGeneratedPlan(){
+  const days=Number(state.planMeta?.days||state.profile?.days||0);
+  const weeks=Array.isArray(state.weeks)?state.weeks:[];
+  if(!days||!weeks.length||!state.planMeta?.generated)return false;
+  const validWeeks=weeks.filter(w=>Object.keys(state.routine?.[w]||{}).length===days);
+  return validWeeks.length===weeks.length;
 }
 function go(view){
   try{ collectRegisterDraft(); updateManualFields($("#routineList"), "routine"); }catch(e){}
@@ -922,6 +940,7 @@ function updateRegisterDraftButtonText(){
 }
 
 function renderRegister(){
+  if(state.planMeta?.generated)syncRegisterToPlanner();
   const plan=getRegisterPlan(),day=plan.obj,box=$("#registerList");if(!box)return;
   populateRegisterControls();
   const draft=getDraft();
@@ -1153,7 +1172,20 @@ function bindControls(){
   $("#addWeekBtn").addEventListener("click",addWeek); $("#exportBtn").addEventListener("click",exportExcel);
   $("#saveFormBtn").addEventListener("click",()=>{const errors=validateProfile(); if(errors.length){showValidation(errors);return;} renderScreening();renderHome();alert("Formulario guardado.");});
   $("#exportAnamnesisBtn")?.addEventListener("click",exportAnamnesisWord);
-  $("#generateFromFormBtn").addEventListener("click",()=>{const errors=validateProfile();if(errors.length){showValidation(errors);return;}const days=Number(state.profile.days||3),dist=getDistribution(days,state.profile.distribution).value;const ok=generateRoutine(days,state.profile.level,state.profile.goal,state.profile.focus,dist);$("#generatorDays").value=days;$("#generatorLevel").value=state.profile.level;$("#generatorGoal").value=state.profile.goal;$("#generatorFocus").value=state.profile.focus;renderDistributionOptions();$("#generatorDistribution").value=dist;if(ok)go("rutina");});
+  $("#generateFromFormBtn").addEventListener("click",()=>{
+    const errors=validateProfile();
+    if(errors.length){showValidation(errors);return;}
+    try{
+      const days=Number(state.profile.days||3),dist=getDistribution(days,state.profile.distribution).value;
+      const ok=generateRoutine(days,state.profile.level,state.profile.goal,state.profile.focus,dist);
+      $("#generatorDays").value=days;$("#generatorLevel").value=state.profile.level;$("#generatorGoal").value=state.profile.goal;$("#generatorFocus").value=state.profile.focus;
+      renderDistributionOptions();$("#generatorDistribution").value=dist;
+      if(ok){
+        if(!reconcileGeneratedPlan()){alert("La rutina no pudo completarse porque la planificación generada quedó vacía.");return;}
+        syncRegisterToPlanner();go("rutina");
+      }
+    }catch(err){console.error("Prime OS: error generando desde formulario",err);alert("No se pudo generar la rutina. Revisa la consola del navegador para el detalle técnico.");}
+  });
   ["generatorDays","generatorFocus","generatorLevel","generatorGoal"].forEach(id=>$("#"+id).addEventListener("change",()=>{
     if(id==="generatorDays")renderDistributionOptions();
     renderSplitPreview();
@@ -1164,8 +1196,27 @@ function bindControls(){
     state.profile=state.profile||{};state.profile.distribution=value;saveState();renderSplitPreview();
   });
   $("#generateRoutineBtn").addEventListener("click",()=>{
-    const ok=generateRoutine($("#generatorDays").value,$("#generatorLevel").value,$("#generatorGoal").value,$("#generatorFocus").value,$("#generatorDistribution")?.value);
-    if(ok)go("rutina");
+    try{
+      const days=Number($("#generatorDays").value||3);
+      const level=$("#generatorLevel").value;
+      const goal=$("#generatorGoal").value;
+      const focus=$("#generatorFocus").value;
+      const distribution=$("#generatorDistribution")?.value;
+      const ok=generateRoutine(days,level,goal,focus,distribution);
+      if(!ok)return;
+      if(!reconcileGeneratedPlan()){
+        console.error("Prime OS: generateRoutine no produjo una planificación válida",{
+          days,distribution,routine:state.routine,planMeta:state.planMeta
+        });
+        alert("La rutina no pudo completarse porque la planificación generada quedó vacía. No se guardaron cambios incompletos.");
+        return;
+      }
+      syncRegisterToPlanner();
+      go("rutina");
+    }catch(err){
+      console.error("Prime OS: error generando rutina",err);
+      alert("No se pudo generar la rutina. Revisa la consola del navegador para el detalle técnico.");
+    }
   });
   $("#goPersonalBtn").addEventListener("click",()=>go("personalizado")); $("#addExerciseBtn").addEventListener("click",()=>addExercise(false)); $("#updateSessionDraftBtn")?.addEventListener("click",()=>{collectRegisterDraft(); alert("Cambios actualizados en el registro. Puedes cambiar de pestaña sin perderlos."); renderAll();}); $("#saveSessionBtn").addEventListener("click",saveSession);
   $("#clearBtn").addEventListener("click",()=>{if(confirm("¿Borrar todos los datos locales?")){localStorage.removeItem(STORAGE_KEY);state=defaultState();saveState();renderAll();go("inicio");}});
