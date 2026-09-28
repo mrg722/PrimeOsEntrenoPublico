@@ -1,4 +1,5 @@
 const STORAGE_KEY = "prime_os_publico_v2_0";
+let APP_READY=false;
 
 const MUSCLES = ["Pierna anterior","Pierna posterior/glúteo","Gemelos","Pecho","Espalda","Hombro","Bíceps","Tríceps","Abdomen","Cardio/recuperación","General"];
 const EVIDENCE_VERSION="2026-09-28";
@@ -232,6 +233,7 @@ const defaultState = () => ({schemaVersion:2,
 });
 
 let state = loadState();
+APP_READY=true;
 
 function $(s){return document.querySelector(s);}
 function $$(s){return Array.from(document.querySelectorAll(s));}
@@ -241,20 +243,21 @@ function loadState(){
     const raw=localStorage.getItem(STORAGE_KEY);
     if(raw) return deepMerge(defaultState(),JSON.parse(raw));
     const old=localStorage.getItem("prime_os_publico_v1_4") || localStorage.getItem("prime_os_publico_v1_3") || localStorage.getItem("prime_os_publico_v1_2") || localStorage.getItem("prime_os_publico_v1_1") || localStorage.getItem("prime_os_publico_v1");
-    if(old) return normalizeImportedState(deepMerge(defaultState(),JSON.parse(old)));
+    if(old){const migrated=normalizeImportedState(deepMerge(defaultState(),JSON.parse(old)));return migrated;}
   }catch(e){}
   return defaultState();
 }
 function normalizeImportedState(s){
-  Object.values(s.routine||{}).forEach(week=>Object.values(week||{}).forEach(day=>(day.exercises||[]).forEach(e=>hydrateExercise(e))));
+  Object.values(s.routine||{}).forEach(week=>Object.values(week||{}).forEach(day=>(day.exercises||[]).forEach(e=>hydrateExercise(e,{goal:s.planMeta?.goal,level:s.planMeta?.level,weekIndex:0}))));
   return s;
 }
-function hydrateExercise(e){
+function hydrateExercise(e,context={}){
  const found=(EXERCISE_LIBRARY[e.group]||[]).find(x=>x.name===e.name);
  if(found){e.equipment=e.equipment||found.equipment;e.objective=e.objective||found.objective;e.how=e.how||found.how;e.recommendation=e.recommendation||found.recommendation;e.note=e.note||found.recommendation;e.baseReps=e.baseReps||found.baseReps||found.reps;e.baseRest=e.baseRest||found.baseRest||found.rest;}
  else{e.equipment=e.equipment||"Equipo a definir";e.objective=e.objective||"Ejercicio personalizado.";e.how=e.how||"Describe cómo se ejecuta este ejercicio.";e.recommendation=e.recommendation||e.note||"Edita la recomendación.";e.note=e.note||e.recommendation;e.baseReps=e.baseReps||e.reps||"10-12";e.baseRest=e.baseRest||e.rest||"90 s";}
  e.loadLevel=e.loadLevel||"Moderado";
- applyLoadToExercise(e,e.loadLevel,{goal:state?.planMeta?.goal,level:state?.planMeta?.level,weekIndex:0});
+ const current=APP_READY?state:null;
+ applyLoadToExercise(e,e.loadLevel,{goal:context.goal||(current?.planMeta?.goal),level:context.level||(current?.planMeta?.level),weekIndex:context.weekIndex||0});
  return e;
 }
 
