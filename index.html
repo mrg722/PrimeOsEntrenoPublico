@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0d1117"/>
   <title>Prime OS · Entrenamiento inteligente</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=2.0"/>
+  <link rel="stylesheet" href="styles.css?v=3.0"/>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -41,7 +41,7 @@
         <button class="nav-btn personal" data-view="personalizado"><span class="nav-icon">★</span><span class="nav-text">Personalizado</span></button>
         <button class="nav-btn" data-view="ajustes"><span class="nav-icon">⚙</span><span class="nav-text">Ajustes</span></button>
       </nav>
-      <div class="sidebar-note"><strong>Versión pública 2.0</strong><span>Motor basado en evidencia · No reemplaza evaluación profesional.</span></div>
+      <div class="sidebar-note"><strong>Versión pública 3.0</strong><span>Motor basado en evidencia · No reemplaza evaluación profesional.</span></div>
     </aside>
 
     <main>
@@ -72,7 +72,7 @@
         </article>
       </section>
 
-      <section id="view-crear" class="view"><article class="card"><div class="card-head"><div><span class="eyebrow">Generador</span><h3>Crear rutina base</h3><p class="small-muted">Rutinas generadas con reglas transparentes de volumen, frecuencia, carga, RIR, descanso y prioridad según el objetivo. Puedes editarlas después en Mi rutina.</p></div></div><div class="form-grid"><label>Días por semana<select id="generatorDays"><option value="1">1 día</option><option value="2">2 días</option><option value="3" selected>3 días</option><option value="4">4 días</option><option value="5">5 días</option><option value="6">6 días</option></select></label><label>Nivel<select id="generatorLevel"><option>Principiante</option><option selected>Intermedio</option><option>Avanzado</option></select></label><label>Objetivo<select id="generatorGoal"><option>Salud general</option><option selected>Ganar masa muscular</option><option>Bajar grasa</option><option>Recomposición corporal</option><option>Ganar fuerza general</option></select></label><label>Énfasis<select id="generatorFocus"><option value="general">General</option><option value="abs">Abdomen</option><option value="pierna-completa">Pierna completa</option><option value="pierna-anterior">Pierna anterior</option><option value="pierna-posterior">Pierna posterior / glúteo</option><option value="pecho">Pecho</option><option value="espalda">Espalda</option><option value="brazos">Brazos y hombro</option></select></label><label>Preferencia de distribución<select id="generatorDistribution"></select></label></div><div class="actions-row"><button id="generateRoutineBtn" class="primary big">Generar rutina base</button><button id="goPersonalBtn" class="ghost big">Quiero algo personalizado</button></div></article><article class="card"><span class="eyebrow">Vista previa</span><h3>Distribución sugerida</h3><div id="splitPreview" class="split-preview"></div></article></section>
+      <section id="view-crear" class="view"><article class="card"><div class="card-head"><div><span class="eyebrow">Generador</span><h3>Crear rutina base</h3><p class="small-muted">Rutinas propuestas mediante el motor determinista de Prime OS. La vista previa muestra la Semana 1 real antes de guardar y la generación materializa 6 semanas completas.</p></div></div><div class="form-grid"><label>Días por semana<select id="generatorDays"><option value="1">1 día</option><option value="2">2 días</option><option value="3" selected>3 días</option><option value="4">4 días</option><option value="5">5 días</option><option value="6">6 días</option></select></label><label>Nivel<select id="generatorLevel"><option>Principiante</option><option selected>Intermedio</option><option>Avanzado</option></select></label><label>Objetivo<select id="generatorGoal"><option>Salud general</option><option selected>Ganar masa muscular</option><option>Bajar grasa</option><option>Recomposición corporal</option><option>Ganar fuerza general</option></select></label><label>Énfasis<select id="generatorFocus"><option value="general">General</option><option value="abs">Abdomen</option><option value="pierna-completa">Pierna completa</option><option value="pierna-anterior">Pierna anterior</option><option value="pierna-posterior">Pierna posterior / glúteo</option><option value="pecho">Pecho</option><option value="espalda">Espalda</option><option value="brazos">Brazos y hombro</option></select></label><label>Preferencia de distribución<select id="generatorDistribution"></select></label></div><div class="form-block generator-weekdays"><h4>Días de entrenamiento</h4><p class="small-muted">Selecciona exactamente los días de la semana en que quieres entrenar. El orden de las sesiones se asigna de lunes a domingo según los días seleccionados.</p><div id="generatorWeekdayChoices" class="weekday-choices"></div></div><div class="actions-row"><button id="generateRoutineBtn" class="primary big">Generar rutina base</button><button id="goPersonalBtn" class="ghost big">Quiero algo personalizado</button></div></article><article class="card"><span class="eyebrow">Vista previa</span><h3>Propuesta científica · Semana 1</h3><div id="splitPreview" class="split-preview"></div></article></section>
 
       <section id="view-rutina" class="view"><article class="card"><div class="card-head"><div><span class="eyebrow">Plan semanal</span><h3>Mi rutina</h3><p class="small-muted">Edita ejercicios, series, reps, descanso y notas.</p></div><button id="addExerciseBtn" class="ghost">+ Añadir ejercicio</button></div><div id="routineList"></div></article></section>
       <section id="view-registrar" class="view"><article class="card"><div class="card-head"><div><span class="eyebrow">Registro</span><h3>Registrar entrenamiento</h3><p class="small-muted">Primero define semana, día real, modalidad y entrenamiento. El día planificado y el día realizado son datos distintos.</p></div><button id="updateSessionDraftBtn" class="ghost">Actualizar cambios</button><button id="saveSessionBtn" class="primary">Guardar sesión</button></div><div class="form-block register-context"><h4>Contexto de la sesión</h4><div class="form-grid"><label>Semana<select id="registerWeek"></select></label><label>Día de la semana<select id="registerWeekday"></select></label><label>Fecha realizada<input id="registerPerformedDate" type="date"></label><label>Modalidad<select id="registerModality"><option>Full Body</option><option>3 días</option><option>4 días</option><option>5 días</option><option>6 días</option></select></label><label>Entrenamiento<select id="registerSession"></select></label></div><div id="registerContextStatus" class="small-muted"></div></div><div id="registerList"></div></article></section>
@@ -91,6 +91,6 @@
 </section>
     </main>
   </div>
-  <script src="app.js?v=2.5"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
