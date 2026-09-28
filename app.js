@@ -1574,7 +1574,30 @@ function importWorkbook(wb){
  if(names.includes("Formulario")){const rows=XLSX.utils.sheet_to_json(wb.Sheets.Formulario,{defval:""});if(rows[0]){const r=rows[0];state.profile={...state.profile,name:r.Nombre||state.profile.name,age:r.Edad||state.profile.age,height:r.Estatura||state.profile.height,weight:r.Peso||state.profile.weight,email:r.Correo||state.profile.email,phone:r.WhatsApp||state.profile.phone,goal:r.Objetivo||state.profile.goal,level:r.Nivel||state.profile.level,days:r.Días||state.profile.days,time:r.Tiempo||state.profile.time,place:r.Lugar||state.profile.place,focus:r.Énfasis||state.profile.focus};}}
  if(names.includes("Registros")||names.includes("Sesiones")){const sheet=names.includes("Registros")?"Registros":"Sesiones",rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{defval:""}),grouped={};rows.forEach(r=>{const sid=r.SesionID||r.ID||r.Fecha+"__"+r.Sesion;if(!grouped[sid])grouped[sid]={id:sid,week:r.Semana||"Semana 1",date:r.Fecha||"",performedDate:r.FechaRealizada||"",performedDay:r.DiaRealizado||"",plannedDay:r.DiaPlanificado||r.Día||"Lunes",day:r.DiaPlanificado||r.Día||"Lunes",title:r.Sesion||"Sesión",modality:r.Modalidad||"3 días",sessionKey:r.DiaPlanificado||r.Día||"Lunes",exercises:[]};let ex=grouped[sid].exercises.find(x=>x.name===(r.Ejercicio||"Ejercicio"));if(!ex){ex={name:r.Ejercicio||"Ejercicio",group:r.Grupo||"General",target:"",notes:r.Observaciones||"",sets:[]};grouped[sid].exercises.push(ex);}ex.sets.push({weight:r.Peso||"",reps:r.Reps||"",rir:r.RIR||"",pain:r.Dolor||"",done:r.Hecha==="Sí"||r.Hecha===true});});state.sessions=Object.values(grouped);}}
 function importCSV(text){const lines=text.split(/\r?\n/).filter(Boolean),headers=lines.shift().split(",").map(h=>h.trim());importRows(lines.map(line=>{const vals=line.split(",");return Object.fromEntries(headers.map((h,i)=>[h,vals[i]||""]));}));}
-function importRows(rows){const routine={};rows.forEach(r=>{const week=r.Semana||r.week||"Semana 1",day=r["Día"]||r.Dia||r.day||"Lunes";if(!routine[week])routine[week]={};if(!routine[week][day])routine[week][day]={title:day,exercises:[]};const group=r.Grupo||r.Músculo||r.Musculo||r.group||"General",name=r.Ejercicio||r.exercise||"Ejercicio personalizado";let item=(EXERCISE_LIBRARY[group]||[]).find(e=>e.name===name);let ex=item?makeExerciseFromLibrary(item):makeExerciseFromLibrary({name,group,equipment:r.Aparato||r.Equipo||"Equipo a definir",sets:Number(r.Series||3),reps:r.Reps||"10-12",rest:r.Descanso||"90 s",objective:r.Objetivo||"Ejercicio personalizado.",how:r.Cómo_hacerlo||r.Como||r.how||"Describe cómo se ejecuta.",recommendation:r.Recomendación||r.Nota||""});ex.sets=Number(r.Series||ex.sets);ex.loadLevel=r.Intensidad||r.Peso||ex.loadLevel||"Moderado";applyLoadToExercise(ex,ex.loadLevel,{goal:state?.planMeta?.goal,level:state?.planMeta?.level,weekIndex:0});if(r.Reps){ex.reps=r.Reps;ex.userOverrideReps=true;}if(r.Descanso){ex.rest=r.Descanso;ex.userOverrideRest=true;}routine[week][day].exercises.push(ex);});state.routine=routine;state.weeks=Object.keys(routine).length?Object.keys(routine):["Semana 1"];state.selectedWeek=state.weeks[0];state.selectedDay=Object.keys(state.routine[state.selectedWeek]||{})[0]||"Día 1";state.planMeta.generated=true;saveState();}
+function importRows(rows){
+ const routine={};
+ rows.forEach(r=>{
+   const week=r.Semana||r.week||"Semana 1",day=r["Día"]||r.Dia||r.day||"Lunes";
+   if(!routine[week])routine[week]={};
+   if(!routine[week][day])routine[week][day]={title:day,exercises:[]};
+   const group=r.Grupo||r.Músculo||r.Musculo||r.group||"General",name=r.Ejercicio||r.exercise||"Ejercicio personalizado";
+   let item=(EXERCISE_LIBRARY[group]||[]).find(e=>e.name===name);
+   let ex=item?makeExerciseFromLibrary(item):makeExerciseFromLibrary({name,group,equipment:r.Aparato||r.Equipo||"Equipo a definir",sets:Number(r.Series||3),reps:r.Reps||"10-12",rest:r.Descanso||"90 s",objective:r.Objetivo||"Ejercicio personalizado.",how:r.Cómo_hacerlo||r.Como||r.how||"Describe cómo se ejecuta.",recommendation:r.Recomendación||r.Nota||""});
+   ex.sets=Number(r.Series||ex.sets);
+   ex.loadLevel=r.Intensidad||r.Peso||ex.loadLevel||"Moderado";
+   applyLoadToExercise(ex,ex.loadLevel,{goal:state?.planMeta?.goal,level:state?.planMeta?.level,weekIndex:0});
+   if(r.Reps){ex.reps=r.Reps;ex.userOverrideReps=true;}
+   if(r.Descanso){ex.rest=r.Descanso;ex.userOverrideRest=true;}
+   routine[week][day].exercises.push(ex);
+ });
+ state.routine=routine;
+ state.weeks=Object.keys(routine).length?Object.keys(routine):["Semana 1"];
+ state.selectedWeek=state.weeks[0];
+ state.selectedDay=Object.keys(state.routine[state.selectedWeek]||{}).find(d=>WEEKDAYS_ES.includes(d))||Object.keys(state.routine[state.selectedWeek]||{})[0]||"Lunes";
+ const importedDays=Object.keys(state.routine[state.selectedWeek]||{}).filter(d=>WEEKDAYS_ES.includes(d)).length;
+ state.planMeta={...state.planMeta,days:Math.max(1,Math.min(6,importedDays||Number(state.planMeta?.days||state.profile?.days||3))),generated:false,source:"imported"};
+ saveState();
+}
 function bindControls(){
   $("#weekSelect").addEventListener("change",e=>{state.selectedWeek=e.target.value;saveState();renderAll();});
   $("#daySelect").addEventListener("change",e=>{state.selectedDay=e.target.value;saveState();renderAll();});
