@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0d1117"/>
+  <title>Prime OS · Entrenamiento inteligente</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css?v=1.5"/>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="watermark">PRIME OS · TRAINING INTELLIGENCE</div>
+
+  <section id="launchScreen" class="launch-screen">
+    <div class="launch-card">
+      <div class="launch-logo">PR</div>
+      <p class="launch-kicker">Entrenamiento inteligente</p>
+      <h1>Prime OS</h1>
+      <p class="launch-text">Crea una rutina base, registra tus entrenamientos y revisa tu progreso semanal.</p><p class="launch-signature">by Martin Reyes</p>
+      <button id="launchBtn" class="primary launch-btn">Iniciar</button>
+    </div>
+  </section>
+
+  <div class="mobile-header">
+    <div class="brand compact"><div class="brand-icon">PR</div><div><h1>Prime OS</h1><p>Entrenamiento inteligente</p></div></div>
+    <button id="menuBtn" class="hamburger-btn" title="Menú" aria-label="Menú"><span></span><span></span><span></span></button>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-icon">PR</div><div class="brand-copy"><h1>Prime OS</h1><p>Entrenamiento inteligente</p></div></div>
+      <nav>
+        <button class="nav-btn active" data-view="inicio"><span class="nav-icon">⌂</span><span class="nav-text">Inicio</span></button>
+        <button class="nav-btn" data-view="formulario"><span class="nav-icon">◫</span><span class="nav-text">Formulario inicial</span></button>
+        <button class="nav-btn" data-view="crear"><span class="nav-icon">✦</span><span class="nav-text">Crear rutina</span></button>
+        <button class="nav-btn" data-view="rutina"><span class="nav-icon">▦</span><span class="nav-text">Mi rutina</span></button>
+        <button class="nav-btn" data-view="registrar"><span class="nav-icon">✎</span><span class="nav-text">Registrar</span></button>
+        <button class="nav-btn" data-view="progreso"><span class="nav-icon">↗</span><span class="nav-text">Progreso</span></button>
+        <button class="nav-btn" data-view="importar"><span class="nav-icon">⇪</span><span class="nav-text">Importar rutina</span></button>
+        <button class="nav-btn personal" data-view="personalizado"><span class="nav-icon">★</span><span class="nav-text">Personalizado</span></button>
+        <button class="nav-btn" data-view="ajustes"><span class="nav-icon">⚙</span><span class="nav-text">Ajustes</span></button>
+      </nav>
+      <div class="sidebar-note"><strong>Versión pública V1</strong><span>Rutinas base generales · No reemplaza evaluación profesional.</span></div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><span class="eyebrow">Prime OS</span><h2 id="pageTitle">Inicio</h2><p id="pageSubtitle" class="page-subtitle">Plataforma pública de entrenamiento inteligente.</p></div>
+        <div class="top-actions"><select id="weekSelect"></select><select id="daySelect"></select><button id="addWeekBtn" class="ghost">+ Añadir semana</button><button id="exportBtn" class="excel">Exportar</button></div>
+      </header>
+
+      <section id="view-inicio" class="view active">
+        <div class="hero-grid">
+          <article class="card hero"><span class="eyebrow light">Entrenamiento inteligente</span><span class="home-signature">by Martin Reyes</span><h3>Rutinas base para empezar, registrar y progresar</h3><p>Prime OS crea una propuesta fija según tus días disponibles, nivel y objetivo. Luego puedes registrar tus sesiones, ajustar semanas e importar tu propia rutina.</p><div class="hero-actions"><button class="primary big" data-go="formulario">Completar formulario inicial</button><button class="ghost big" data-go="crear">Crear rutina base</button><button class="ghost big" data-go="personalizado">Rutina personalizada</button></div></article>
+          <article class="card status-card"><span class="eyebrow">Estado actual</span><h3 id="homePlanTitle">Sin rutina generada</h3><div class="stat-list"><div><strong id="homeDays">—</strong><span>Días por semana</span></div><div><strong id="homeLevel">—</strong><span>Nivel</span></div><div><strong id="homeGoal">—</strong><span>Objetivo</span></div><div><strong id="homeRisk">—</strong><span>Screening</span></div></div></article>
+        </div>
+        <div class="grid three"><article class="card mini"><h3>1. Formulario inicial</h3><p>Anamnesis básica: objetivo, experiencia, salud, lesiones, disponibilidad y equipamiento.</p></article><article class="card mini"><h3>2. Rutina base</h3><p>Elige 1 a 6 días y Prime OS genera una distribución semanal general.</p></article><article class="card mini"><h3>3. Personalizado</h3><p>Si quieres algo adaptado a ti, puedes contactar a Martin para una rutina personalizada.</p></article></div>
+        <article class="card warning"><strong>Importante:</strong> Las rutinas base son orientativas para población general. Si tienes enfermedad cardiovascular, metabólica, renal, dolor fuerte, síntomas de alarma, embarazo o indicación médica, consulta con un profesional antes de iniciar entrenamiento intenso.</article>
+      </section>
+
+      <section id="view-formulario" class="view">
+        <article class="card"><div class="card-head"><div><span class="eyebrow">Anamnesis</span><h3>Formulario inicial</h3><p class="small-muted">Completa estos datos para orientar mejor la rutina base. Esta información queda guardada solo en tu navegador.</p></div></div>
+          <div class="form-block"><h4>Datos básicos</h4><div class="form-grid"><label>Nombre <input id="clientName" placeholder="Ej: Sofía / Pedro / Camila"></label><label>Edad <input id="clientAge" type="number" min="12" max="100" placeholder="Ej: 25"></label><label>Estatura <input id="clientHeight" placeholder="Ej: 1.70 m"></label><label>Peso actual <input id="clientWeight" placeholder="Ej: 75 kg"></label><label>Correo <input id="clientEmail" type="email" placeholder="correo@ejemplo.com"></label><label>WhatsApp <input id="clientPhone" placeholder="+56 9 XXXX XXXX"></label></div></div>
+          <div class="form-block"><h4>Objetivo y disponibilidad</h4><div class="form-grid"><label>Objetivo principal<select id="clientGoal"><option>Salud general</option><option>Ganar masa muscular</option><option>Bajar grasa</option><option>Recomposición corporal</option><option>Ganar fuerza general</option><option>Volver a entrenar</option></select></label><label>Nivel<select id="clientLevel"><option>Principiante</option><option>Intermedio</option><option>Avanzado</option></select></label><label>Días disponibles<select id="clientDays"><option value="1">1 día</option><option value="2">2 días</option><option value="3" selected>3 días</option><option value="4">4 días</option><option value="5">5 días</option><option value="6">6 días</option></select></label><label>Tiempo por sesión<select id="clientTime"><option>30 min</option><option selected>45-60 min</option><option>60-75 min</option><option>75-90 min</option></select></label><label>Lugar<select id="clientPlace"><option>Gimnasio</option><option>Casa</option><option>Mixto</option></select></label><label>Énfasis muscular<select id="clientFocus"><option value="general">General</option><option value="abs">Abdomen</option><option value="pierna-completa">Pierna completa</option><option value="pierna-anterior">Pierna anterior</option><option value="pierna-posterior">Pierna posterior / glúteo</option><option value="pecho">Pecho</option><option value="espalda">Espalda</option><option value="brazos">Brazos y hombro</option></select></label></div></div>
+          <div class="form-block"><h4>Salud y antecedentes</h4><div class="checks-grid" id="healthChecks"><label><input type="checkbox" value="Hipertensión"> Hipertensión</label><label><input type="checkbox" value="Diabetes"> Diabetes</label><label><input type="checkbox" value="Resistencia a la insulina"> Resistencia a la insulina</label><label><input type="checkbox" value="Colesterol/triglicéridos altos"> Colesterol/triglicéridos altos</label><label><input type="checkbox" value="Enfermedad cardiovascular"> Enfermedad cardiovascular</label><label><input type="checkbox" value="Enfermedad renal"> Enfermedad renal</label><label><input type="checkbox" value="Asma/EPOC"> Asma/EPOC</label><label><input type="checkbox" value="Embarazo/postparto"> Embarazo/postparto</label><label><input type="checkbox" value="Ninguna"> Ninguna</label></div></div>
+          <div class="form-block"><h4>Síntomas de alarma</h4><div class="checks-grid" id="alarmChecks"><label><input type="checkbox" value="Dolor/ presión en pecho durante esfuerzo"> Dolor o presión en pecho durante esfuerzo</label><label><input type="checkbox" value="Mareos o desmayos"> Mareos o desmayos</label><label><input type="checkbox" value="Falta de aire inusual"> Falta de aire inusual</label><label><input type="checkbox" value="Palpitaciones fuertes"> Palpitaciones fuertes no explicadas</label><label><input type="checkbox" value="Dolor fuerte actual"> Dolor fuerte actual</label><label><input type="checkbox" value="Ninguno"> Ninguno</label></div></div>
+          <div class="form-block"><h4>Lesiones, dolor y preferencias</h4><div class="form-grid"><label>Dolor actual 0-10 <input id="painLevel" type="number" min="0" max="10" value="0"></label><label>Zona con molestia<select id="painZone"><option>Ninguna</option><option>Hombro</option><option>Codo/muñeca</option><option>Columna cervical</option><option>Columna lumbar</option><option>Cadera</option><option>Rodilla</option><option>Tobillo</option><option>Isquios/glúteo</option><option>Otra</option></select></label><label class="wide">Ejercicios que prefieres evitar <textarea id="avoidExercises" placeholder="Ej: sentadilla libre, peso muerto, correr..."></textarea></label>
+              <label class="wide">Antecedentes médicos relevantes <textarea id="medicalHistory" placeholder="Ej: hipertensión controlada, resistencia a la insulina, asma, operación previa, indicación médica..."></textarea></label>
+              <label class="wide">Lesiones o molestias anteriores <textarea id="injuryHistory" placeholder="Ej: dolor lumbar previo, esguince de tobillo, tendinitis, lesión de rodilla, hombro sensible..."></textarea></label><label class="wide">Notas importantes <textarea id="clientNotes" placeholder="Lesiones, medicamentos, indicaciones médicas, horarios, gustos..."></textarea></label></div></div>
+          <div class="actions-row"><button id="saveFormBtn" class="primary">Guardar formulario</button><button id="exportAnamnesisBtn" class="ghost">Exportar anamnesis Word</button><button id="generateFromFormBtn" class="ghost">Guardar y generar rutina</button></div><div id="screeningResult" class="decision"></div>
+        </article>
+      </section>
+
+      <section id="view-crear" class="view"><article class="card"><div class="card-head"><div><span class="eyebrow">Generador</span><h3>Crear rutina base</h3><p class="small-muted">Rutinas fijas generales. Puedes editarlas después en Mi rutina.</p></div></div><div class="form-grid"><label>Días por semana<select id="generatorDays"><option value="1">1 día</option><option value="2">2 días</option><option value="3" selected>3 días</option><option value="4">4 días</option><option value="5">5 días</option><option value="6">6 días</option></select></label><label>Nivel<select id="generatorLevel"><option>Principiante</option><option selected>Intermedio</option><option>Avanzado</option></select></label><label>Objetivo<select id="generatorGoal"><option>Salud general</option><option selected>Ganar masa muscular</option><option>Bajar grasa</option><option>Recomposición corporal</option><option>Ganar fuerza general</option></select></label><label>Énfasis<select id="generatorFocus"><option value="general">General</option><option value="abs">Abdomen</option><option value="pierna-completa">Pierna completa</option><option value="pierna-anterior">Pierna anterior</option><option value="pierna-posterior">Pierna posterior / glúteo</option><option value="pecho">Pecho</option><option value="espalda">Espalda</option><option value="brazos">Brazos y hombro</option></select></label></div><div class="actions-row"><button id="generateRoutineBtn" class="primary big">Generar rutina base</button><button id="goPersonalBtn" class="ghost big">Quiero algo personalizado</button></div></article><article class="card"><span class="eyebrow">Vista previa</span><h3>Distribución sugerida</h3><div id="splitPreview" class="split-preview"></div></article></section>
+
+      <section id="view-rutina" class="view"><article class="card"><div class="card-head"><div><span class="eyebrow">Plan semanal</span><h3>Mi rutina</h3><p class="small-muted">Edita ejercicios, series, reps, descanso y notas.</p></div><button id="addExerciseBtn" class="ghost">+ Añadir ejercicio</button></div><div id="routineList"></div></article></section>
+      <section id="view-registrar" class="view"><article class="card"><div class="card-head"><div><span class="eyebrow">Registro</span><h3>Registrar entrenamiento</h3><p class="small-muted">Registra lo realizado. Si algo duele o se siente mal, baja carga o cambia el ejercicio.</p></div><button id="updateSessionDraftBtn" class="ghost">Actualizar cambios</button><button id="saveSessionBtn" class="primary">Guardar sesión</button></div><div id="registerList"></div></article></section>
+      <section id="view-progreso" class="view"><div class="grid two"><article class="card"><span class="eyebrow">Progreso semanal</span><h3>Series realizadas por grupo</h3><div id="progressBars"></div></article><article class="card"><span class="eyebrow">Recomendación</span><h3>Avance general</h3><div id="progressAdvice" class="assistant-text"></div></article></div><article class="card"><span class="eyebrow">Historial</span><h3>Sesiones guardadas</h3><div id="historyList"></div></article></section>
+      <section id="view-importar" class="view"><article class="card"><span class="eyebrow">Importar</span><h3>Importar rutina propia</h3><p>Este apartado está pensado para cargar rutinas personalizadas preparadas por Martin o una planificación externa en formato JSON, CSV o Excel. Si tienes una rutina hecha para ti, puedes importarla aquí.</p><label class="import-label">Seleccionar archivo<input id="importInput" type="file" accept=".json,.csv,.xlsx,.xls,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/></label><div id="importStatus" class="import-status"></div></article><article class="card"><span class="eyebrow">Formato simple CSV</span><h3>Columnas recomendadas</h3><pre class="code">Semana,Día,Ejercicio,Grupo,Series,Reps,Descanso,Nota</pre></article></section>
+      <section id="view-personalizado" class="view"><article class="card personalized-card"><span class="eyebrow light">Rutina personalizada</span><h3>¿Quieres una planificación hecha para ti?</h3><p>Soy <strong>Martin Reyes</strong>, preparador físico y creador de Prime OS. Puedo ayudarte a estructurar una rutina según tu objetivo, nivel, disponibilidad, historial de lesiones, enfermedades, tu equipamiento disponible y orientarte hacia un progreso real.</p>
+          <p>Trabajo con hipertrofia, fuerza, recomposición corporal, reintegro deportivo, definición, volumen o simplemente si buscas generar un cambio: este es tu lugar. Realizo seguimiento mediante registros y reportes hechos por ti en cada sesión.</p>
+          <p>Las rutinas base de Prime OS son guías generales. Si quieres algo realmente adaptado a ti, puedes solicitar una planificación personalizada por mí.</p><div class="contact-actions"><a class="primary big" id="whatsappLink" href="https://wa.me/56932863511?text=Hola%20Martin%2C%20vengo%20desde%20Prime%20OS%20y%20me%20interesa%20una%20rutina%20personalizada." target="_blank" rel="noopener">Hablar por WhatsApp</a><a class="ghost big" id="mailLink" href="mailto:myrg745@gmail.com?subject=Rutina%20personalizada%20Prime%20OS&body=Hola%20Martin%2C%20vengo%20desde%20Prime%20OS%20y%20me%20interesa%20una%20rutina%20personalizada.">Enviar correo</a></div><div class="contact-box"><strong>Contacto</strong><span>WhatsApp: +56 9 3286 3511</span><span>Correo: myrg745@gmail.com</span></div></article></section>
+      <section id="view-ajustes" class="view"><article class="card"><span class="eyebrow">Ajustes</span><h3>Gestión local</h3><p>Los datos se guardan en este navegador mediante LocalStorage.</p><div class="theme-panel"><h4>Tema visual</h4><p class="small-muted">Cambia el color de la interfaz y del fondo gym sin alterar tu estructura, rutina ni registros.</p><div id="themeButtons" class="theme-buttons"><button type="button" class="theme-chip" data-theme="negro"><span class="theme-dot negro"></span>Negro</button><button type="button" class="theme-chip" data-theme="blanco"><span class="theme-dot blanco"></span>Blanco</button><button type="button" class="theme-chip" data-theme="azul"><span class="theme-dot azul"></span>Azul</button><button type="button" class="theme-chip" data-theme="verde"><span class="theme-dot verde"></span>Verde</button><button type="button" class="theme-chip" data-theme="turquesa"><span class="theme-dot turquesa"></span>Turquesa</button></div><p class="small-muted theme-help">El tema elegido cambia el color principal, el fondo de inicio y el fondo general de la plataforma.</p></div><div class="actions-row"><button id="clearBtn" class="danger">Borrar datos locales</button><button id="resetDemoBtn" class="ghost">Restaurar estructura inicial</button></div></article></section>
+    </main>
+  </div>
+  <script src="app.js?v=1.5"></script>
+</body>
+</html>
