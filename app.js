@@ -363,7 +363,7 @@ const DISTRIBUTION_POLICIES={
 ],
 6:[
  {value:"ppl-2",label:"Push / Pull / Legs ×2",sessions:["Push A","Pull A","Legs A","Push B","Pull B","Legs B"],basis:"Seis sesiones divididas por patrón; no se ofrece Full Body ×6."},
- {value:"upper-lower-3",label:"Upper / Lower ×3",sessions:["Upper A","Lower A","Upper B","Lower B","Upper A","Lower A"],basis:"Tres exposiciones de tren superior e inferior; la repetición A se usa de forma deliberada."}
+ {value:"upper-lower-3",label:"Upper / Lower ×3",sessions:["Upper A","Lower A","Upper B","Lower B","Upper C","Lower C"],basis:"Tres exposiciones de tren superior e inferior con variantes A/B/C; la estructura se fija explícitamente y no se sortea."}
 ]
 };
 function distributionOptionsForDays(days){return DISTRIBUTION_POLICIES[Number(days)]||DISTRIBUTION_POLICIES[3];}
@@ -373,7 +373,7 @@ function distributionLabel(days,value){return getDistribution(days,value).label;
 function splitFor(days,focus="general",goal="Ganar masa muscular",distribution=null){return getDistribution(days,distribution).sessions.slice(0,Number(days));}
 
 function summaryForSplit(name){
-  return {"Full Body":"Pierna, pecho, espalda, glúteo/posterior, hombro y abdomen con volumen distribuido.","Full Body A":"Full Body con prioridad a patrones básicos y distribución equilibrada.","Full Body B":"Full Body con variantes para distribuir el estímulo.","Full Body C":"Full Body con tercera exposición y variantes.","Lower A":"Cuádriceps, posterior/glúteo, gemelos y core.","Lower B":"Posterior/glúteo, cuádriceps, gemelos y core con variantes.","Upper A":"Pecho, espalda, hombros y brazos.","Upper B":"Pecho, espalda, hombros y brazos con variantes.","Push A":"Pecho, hombros y tríceps.","Push B":"Pecho, hombros y tríceps con variantes.","Pull A":"Espalda, deltoide posterior y bíceps.","Pull B":"Espalda, deltoide posterior y bíceps con variantes.","Legs A":"Cuádriceps, posterior/glúteo, gemelos y abdomen.","Legs B":"Pierna completa, gemelos y abdomen con variantes."}[name]||"Rutina base general.";
+  return {"Full Body":"Pierna, pecho, espalda, glúteo/posterior, hombro y abdomen con volumen distribuido.","Full Body A":"Full Body con prioridad a patrones básicos y distribución equilibrada.","Full Body B":"Full Body con variantes para distribuir el estímulo.","Full Body C":"Full Body con tercera exposición y variantes.","Lower A":"Cuádriceps, posterior/glúteo, gemelos y core.","Lower B":"Posterior/glúteo, cuádriceps, gemelos y core con variantes.","Upper A":"Pecho, espalda, hombros y brazos.","Upper B":"Pecho, espalda, hombros y brazos con variantes.","Upper C":"Pecho, espalda, hombros y brazos con tercera variante.","Push A":"Pecho, hombros y tríceps.","Push B":"Pecho, hombros y tríceps con variantes.","Pull A":"Espalda, deltoide posterior y bíceps.","Pull B":"Espalda, deltoide posterior y bíceps con variantes.","Legs A":"Cuádriceps, posterior/glúteo, gemelos y abdomen.","Legs B":"Pierna completa, gemelos y abdomen con variantes.","Legs C":"Pierna completa, gemelos y abdomen con tercera variante."}[name]||"Rutina base general.";
 }
 function exercisesFor(type,level,focus,context={}){
   const picks={
@@ -385,12 +385,14 @@ function exercisesFor(type,level,focus,context={}){
     "Lower B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna posterior/glúteo","Curl femoral sentado"],["Pierna anterior","Zancadas"],["Gemelos","Gemelos sentado"],["Abdomen","Dead bug"]],
     "Upper A":[["Pecho","Press banca"],["Espalda","Jalón al pecho"],["Hombro","Press hombro con mancuernas"],["Espalda","Remo sentado"],["Bíceps","Curl bíceps con mancuernas"],["Tríceps","Tríceps en polea"]],
     "Upper B":[["Pecho","Press inclinado en máquina"],["Espalda","Remo en máquina"],["Hombro","Elevaciones laterales"],["Espalda","Dominadas asistidas"],["Bíceps","Curl martillo"],["Tríceps","Extensión de tríceps con cuerda"],["Hombro","Pájaros / posterior de hombro"]],
+    "Upper C":[["Pecho","Press con mancuernas plano"],["Espalda","Pullover en polea"],["Hombro","Press de hombro en máquina"],["Espalda","Remo pecho apoyado"],["Bíceps","Curl predicador"],["Tríceps","Press cerrado en máquina"],["Hombro","Face pull"]],
     "Push A":[["Pecho","Press banca"],["Pecho","Press inclinado con mancuernas"],["Hombro","Press hombro con mancuernas"],["Hombro","Elevaciones laterales"],["Tríceps","Tríceps en polea"],["Tríceps","Extensión de tríceps con cuerda"]],
     "Push B":[["Pecho","Press de pecho en máquina"],["Pecho","Aperturas en máquina"],["Hombro","Press de hombro en máquina"],["Hombro","Pájaros / posterior de hombro"],["Tríceps","Fondos asistidos"],["Tríceps","Extensión sobre cabeza"]],
     "Pull A":[["Espalda","Jalón al pecho"],["Espalda","Remo sentado"],["Espalda","Remo pecho apoyado"],["Espalda","Face pull"],["Bíceps","Curl bíceps con mancuernas"],["Bíceps","Curl martillo"]],
     "Pull B":[["Espalda","Dominadas asistidas"],["Espalda","Remo en máquina"],["Espalda","Pullover en polea"],["Hombro","Pájaros / posterior de hombro"],["Bíceps","Curl predicador"],["Bíceps","Curl bíceps en polea"]],
     "Legs A":[["Pierna anterior","Prensa"],["Pierna posterior/glúteo","Peso muerto rumano"],["Pierna anterior","Zancadas"],["Pierna posterior/glúteo","Curl femoral sentado"],["Gemelos","Gemelos de pie"],["Abdomen","Plancha"]],
-    "Legs B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna anterior","Extensión de piernas"],["Pierna posterior/glúteo","Curl femoral acostado"],["Gemelos","Gemelos sentado"],["Abdomen","Pallof press"]]
+    "Legs B":[["Pierna anterior","Sentadilla goblet"],["Pierna posterior/glúteo","Hip thrust"],["Pierna anterior","Extensión de piernas"],["Pierna posterior/glúteo","Curl femoral acostado"],["Gemelos","Gemelos sentado"],["Abdomen","Pallof press"]],
+    "Legs C":[["Pierna anterior","Hack squat"],["Pierna posterior/glúteo","Peso muerto con mancuernas"],["Pierna anterior","Subida al cajón"],["Pierna posterior/glúteo","Patada de glúteo"],["Gemelos","Gemelos en Smith"],["Abdomen","Elevación de piernas"]]
   }[type]||[["General","Ejercicio personalizado"]];
   const profile=context.profile||state.profile||{};const items=[];
   for(const [g,n] of picks){const item=(EXERCISE_LIBRARY[g]||[]).find(e=>e.name===n)||EXERCISE_LIBRARY[g]?.[0];if(item){const ex=makeExerciseFromLibrary(item);if(isExerciseCompatible(ex,profile))items.push(ex);}}
@@ -411,6 +413,7 @@ function trainingEngine(days,level,goal,focus,profile,weekIndex,distribution){
   e.weekRole=phase.phase;e.phase=phase.phase;
   e.periodizationNote=weekIndex===4?"Reducción de fatiga programada; no es una regla universal.":"Variación semanal explícita de carga/repeticiones/RIR para el objetivo seleccionado.";
   e.loadLevel=phase.loadLevel;
+  e.sets=Math.max(1,Math.round(Number(e.sets||1)*phase.setFactor));
   applyLoadToExercise(e,e.loadLevel,{goal,level,weekIndex});
  }));
  return plan;
@@ -951,7 +954,16 @@ function renderProgress(){
  const weekSel=$("#historyWeek");
  if(weekSel){weekSel.innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${escapeHtml(w)}</option>`).join("");}
 }
-function addWeek(){const last=state.weeks[state.weeks.length-1],nextNum=Number((last.match(/\d+/)||[state.weeks.length])[0])+1,next=`Semana ${nextNum}`;state.weeks.push(next);state.routine[next]=state.routine[last]?JSON.parse(JSON.stringify(state.routine[last])):{};state.selectedWeek=next;saveState();renderAll();}
+function addWeek(){
+ const last=state.weeks[state.weeks.length-1],nextNum=Number((last.match(/\d+/)||[state.weeks.length])[0])+1,next=`Semana ${nextNum}`;
+ state.weeks.push(next);
+ const n=Number(state.planMeta?.days||state.profile?.days||3),level=state.planMeta?.level||state.profile?.level||"Intermedio",goal=state.planMeta?.goal||state.profile?.goal||"Salud general",focus=state.planMeta?.focus||state.profile?.focus||"general",dist=state.planMeta?.distribution||defaultDistributionForDays(n);
+ const profile={...state.profile,days:String(n),level,goal,focus,distribution:dist};
+ const plan=trainingEngine(n,level,goal,focus,profile,state.weeks.length-1,dist);
+ state.routine[next]={};
+ plan.forEach((day,idx)=>{state.routine[next]["Día "+(idx+1)]={title:day.title,exercises:day.exercises};});
+ state.selectedWeek=next;saveState();renderAll();
+}
 function addExercise(fromRegister=false){
   if(fromRegister){
     const draft=getDraft();
