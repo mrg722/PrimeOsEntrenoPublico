@@ -891,8 +891,17 @@ function bindControls(){
   $("#clearBtn").addEventListener("click",()=>{if(confirm("¿Borrar todos los datos locales?")){localStorage.removeItem(STORAGE_KEY);state=defaultState();saveState();renderAll();go("inicio");}});
   $("#resetDemoBtn").addEventListener("click",()=>{state=defaultState();saveState();renderAll();go("inicio");});
   $("#importInput").addEventListener("change",e=>{const file=e.target.files?.[0];if(file)importFile(file);});
-  $("#progressScope")?.addEventListener("change", renderProgress);
-  $$("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme); saveState();}));
+  $("#progressScope")?.addEventListener("change",renderProgress);
+  $("#registerWeek")?.addEventListener("change",e=>{const r=ensureRegistrationState();r.editingSessionId=null;setRegisterSelection("week",e.target.value);});
+  $("#registerPerformedDate")?.addEventListener("change",e=>{const r=ensureRegistrationState(),old=r.performedDate;r.performedDate=e.target.value||localDateISO();if(old!==r.performedDate)r.editingSessionId=null;saveState();renderAll();});
+  $("#registerModality")?.addEventListener("change",e=>{const r=ensureRegistrationState();r.editingSessionId=null;setRegisterSelection("modality",e.target.value);});
+  $("#registerSession")?.addEventListener("change",e=>{const r=ensureRegistrationState();r.editingSessionId=null;setRegisterSelection("sessionKey",e.target.value);});
+  $("#historyWeek")?.addEventListener("change",e=>{state.selectedWeek=e.target.value;saveState();renderProgress();});
+  $("#historyWeekExcelBtn")?.addEventListener("click",()=>exportWeekExcel($("#historyWeek")?.value||state.selectedWeek));
+  $("#historyWeekWordBtn")?.addEventListener("click",()=>exportWeekWord($("#historyWeek")?.value||state.selectedWeek));
+  $("#backupExportBtn")?.addEventListener("click",exportBackupJson);
+  $("#backupRestoreBtn")?.addEventListener("click",()=>$("#importInput")?.click());
+  $("#themeButtons .theme-chip").forEach(btn=>btn.addEventListener("click",()=>{applyTheme(btn.dataset.theme);saveState();}));
 }
 function renderAll(){applyTheme(state.ui?.theme||"azul");renderSelectors();fillProfile();renderSplitPreview();renderHome();renderRoutine();renderRegister();renderProgress();renderEvidenceSettings();}
 document.addEventListener("DOMContentLoaded",()=>{bindLaunch();bindNav();bindControls();renderAll();});
