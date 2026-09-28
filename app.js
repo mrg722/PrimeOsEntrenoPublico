@@ -395,6 +395,15 @@ function normalizeStateShape(s){
   s.ui.register={...base.ui.register,...(s.ui.register&&typeof s.ui.register==="object"?s.ui.register:{})};
   s.ui.generator={...((base.ui&&base.ui.generator)||{}),...(s.ui.generator&&typeof s.ui.generator==="object"?s.ui.generator:{})};
   migrateLegacyWeekdays(s);
+  const hasRoutine=Object.values(s.routine||{}).some(week=>Object.values(week||{}).some(day=>(day?.exercises||[]).length>0));
+  if(hasRoutine)s.planMeta.generated=true;
+  const routineDays=Object.values(s.routine||{}).reduce((max,week)=>Math.max(max,Object.keys(week||{}).filter(k=>WEEKDAYS_ES.includes(k)).length),0);
+  if(routineDays>0)s.planMeta.days=Math.max(1,Math.min(6,Number(s.planMeta.days)||routineDays));
+  s.planMeta.weekdaySchedule=normalizeWeekdaySchedule(s.planMeta.weekdaySchedule||s.profile.weekdaySchedule,s.planMeta.days||s.profile.days||3);
+  s.profile.weekdaySchedule=s.planMeta.weekdaySchedule;
+  s.ui.generator.weekdaySchedule=Array.isArray(s.ui.generator.weekdaySchedule)&&s.ui.generator.weekdaySchedule.length===Number(s.planMeta.days||s.profile.days||3)
+    ?s.ui.generator.weekdaySchedule
+    :s.planMeta.weekdaySchedule;
   s.selectedWeek=s.weeks.includes(s.selectedWeek)?s.selectedWeek:s.weeks[0];
   if(!WEEKDAYS_ES.includes(s.selectedDay)){
     const schedule=scheduleForPlan(s.planMeta,s.profile);
@@ -1091,6 +1100,12 @@ function renderRoutine(){
   ensureGeneratedRoutineIntegrity();
   ensurePlannerSelection();
   const day=currentDayObj(), box=$("#routineList"); if(!box)return;
+  const hasAnyRoutine=Object.values(state.routine||{}).some(week=>Object.values(week||{}).some(item=>(item?.exercises||[]).length>0));
+  if(!hasAnyRoutine){
+    box.innerHTML=`<div class="decision yellow routine-empty-state"><strong>Aún no hay una rutina cargada.</strong><br><span class="small-muted">Completa el formulario o entra en Crear rutina base para materializar la propuesta de 6 semanas con la prescripción del motor.</span><div class="actions-row"><button type="button" class="primary" id="goCreateRoutineBtn">Crear rutina base</button></div></div>`;
+    box.querySelector("#goCreateRoutineBtn")?.addEventListener("click",()=>go("crear"));
+    return;
+  }
   const rows=(day.exercises||[]).map((e,idx)=>libraryCard(e,idx,"routine")).join("");
   const header=`<div class="split-day"><h4>${escapeHtml(state.selectedWeek)} · ${escapeHtml(state.selectedDay)} · ${escapeHtml(day.title)}</h4><p class="small-muted">${day.isRestDay?"No hay una sesión planificada para este día. Selecciona un día marcado como Entrenamiento.":"Rutina generada con prescripción de series, reps, RIR, descanso, fase y fuentes aplicadas. Los cambios aquí afectan la planificación, no borran el historial."}</p></div>`;
   const body=day.isRestDay
