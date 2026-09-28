@@ -386,3 +386,96 @@ body[data-theme="negro"] .theme-chip.active{box-shadow:0 0 0 3px rgba(125,133,14
 @media(max-width:760px){
   .top-actions.planner-context{display:grid}
 }
+
+
+/* Prime OS 3.0 · weekday planner and generated proposal preview */
+.generator-weekdays{
+  margin-top:16px;
+}
+.weekday-choices{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.weekday-choice{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  padding:9px 8px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#0d1117;
+  color:var(--muted);
+  cursor:pointer;
+  text-transform:none;
+  font-size:12px;
+  font-weight:850;
+  letter-spacing:0;
+  transition:.18s;
+}
+.weekday-choice:hover{
+  border-color:var(--primary);
+  color:#fff;
+}
+.weekday-choice.selected{
+  border-color:var(--primary);
+  background:rgba(47,129,247,.12);
+  color:#fff;
+  box-shadow:0 0 0 2px rgba(47,129,247,.10);
+}
+.weekday-choice input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+  width:1px;
+  height:1px;
+}
+.preview-exercise{
+  display:grid;
+  gap:4px;
+  padding:10px 12px;
+  margin-top:8px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#0d1117;
+}
+.preview-exercise strong{
+  color:#fff;
+  font-size:13px;
+}
+.preview-exercise span{
+  color:var(--text);
+  font-size:12px;
+  line-height:1.4;
+}
+.preview-exercise small{
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.4;
+  word-break:break-word;
+}
+body[data-theme="blanco"] .weekday-choice,
+body[data-theme="blanco"] .preview-exercise{
+  background:#f8fbff;
+  color:#111827;
+}
+body[data-theme="blanco"] .weekday-choice.selected{
+  background:rgba(47,129,247,.10);
+}
+body[data-theme="blanco"] .preview-exercise strong,
+body[data-theme="blanco"] .preview-exercise span{
+  color:#111827;
+}
+@media(max-width:980px){
+  .weekday-choices{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:760px){
+  .weekday-choices{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
