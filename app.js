@@ -670,13 +670,13 @@ function generateRoutine(days,level,goal,focus,distribution,weekdaySchedule){
   };
   const generatedWeeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
   let generatedRoutine;
+  const previousPlanMeta=state.planMeta;
   try{
-    const previousPlanMeta=state.planMeta;
     state.planMeta=nextPlanMeta;
     generatedRoutine=buildGeneratedRoutine(n,level,goal,focus,selected.value,profile,generatedWeeks);
     state.planMeta=previousPlanMeta;
   }catch(err){
-    state.planMeta=state.planMeta;
+    state.planMeta=previousPlanMeta;
     console.error("Prime OS: ENGINE_GENERATION_ERROR",err);
     alert("Prime OS no pudo completar el motor de generación. El estado anterior se conservó. Detalle: "+(err?.message||"error desconocido"));
     return false;
