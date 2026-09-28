@@ -60,7 +60,7 @@ function periodizationForWeek(goal,weekIndex){
     {phase:"Semana 2 · Progresión",loadLevel:"Moderado",rir:"2-3",volumeFactor:1,repRange:[g.repRange[0],g.repRange[1]]},
     {phase:"Semana 3 · Progresión de dosis",loadLevel:"Moderado",rir:["Ganar fuerza general","Ganar masa muscular"].includes(goal)?"1-2":"2",volumeFactor:1.05,repRange:["Ganar fuerza general"===goal?4:6,"Ganar fuerza general"===goal?6:12]},
     {phase:"Semana 4 · Intensificación",loadLevel:goal==="Ganar fuerza general"?"Alto":"Moderado",rir:["Ganar fuerza general","Ganar masa muscular"].includes(goal)?"1-2":g.targetRir,volumeFactor:1.05,repRange:["Ganar fuerza general"===goal?3:6,"Ganar fuerza general"===goal?6:10]},
-    {phase:"Semana 5 · Consolidación",loadLevel:"Moderado",rir:["Ganar fuerza general","Ganar masa muscular"].includes(goal)?"1-2":g.targetRir,volumeFactor:1,repRange:["Ganar fuerza general"===goal?4:6,"Ganar fuerza general"===goal?7:12]},
+    {phase:"Semana 5 · Consolidación",loadLevel:"Moderado",rir:["Ganar fuerza general","Ganar masa muscular"].includes(goal)?"1-2":g.targetRir,volumeFactor:1,volumeProgression:true,repRange:["Ganar fuerza general"===goal?4:6,"Ganar fuerza general"===goal?7:12]},
     {phase:"Semana 6 · Reducción de fatiga",loadLevel:"Moderado",rir:"3-4",volumeFactor:0.65,repRange:[Math.max(6,g.repRange[0]),Math.min(15,g.repRange[1]+2)]}
   ];
   return {...phases[i],weekIndex:i,evidenceRefs:["acsm2026","dose2026","bjsm2023","periodization2022","load2021","autoregulation2022","volumeModel2024","individualDose2026","setProgression2025","volumeProgression2025"]};
@@ -464,26 +464,69 @@ function exercisesFor(type,level,focus,context={}){
     return e;
   });
 }
+
 function performanceSignal(exercise,previousWeekIndex){
   if(previousWeekIndex<0)return{signal:"Sin datos previos",action:"Establece línea base y registra RIR.",confidence:"baja"};
   const previous=state.sessions.filter(s=>Number(String(s.week||"").replace(/\D/g,""))===previousWeekIndex+1);
-  const same=previous.flatMap(s=>s.exercises||[]).filter(e=>e.name===exercise.name&&e.group===exercise.group),sets=same.flatMap(e=>e.sets||[]).filter(x=>x.done&&Number(x.reps)>0);
+  const same=previous.flatMap(s=>s.exercises||[]).filter(e=>e.name===exercise.name&&e.group===exercise.group);
+  const sets=same.flatMap(e=>e.sets||[]).filter(x=>x.done&&Number(x.reps)>0);
   if(!sets.length)return{signal:"Sin datos previos",action:"Registra peso, repeticiones y RIR para ajustar la próxima semana.",confidence:"baja"};
-  const rirs=sets.map(x=>Number(x.rir)).filter(Number.isFinite),avgRir=rirs.length?rirs.reduce((a,b)=>a+b,0)/rirs.length:null;
-  if(avgRir!==null&&avgRir<1)return{signal:"Esfuerzo demasiado alto",action:"No aumentes carga; prioriza recuperación y RIR objetivo.",confidence:"media"};
-  if(avgRir!==null&&avgRir>3.5)return{signal:"Esfuerzo demasiado bajo",action:"Considera aumentar carga disponible manteniendo técnica y RIR objetivo.",confidence:"media"};
-  return{signal:"Rendimiento utilizable",action:"Intenta progresar dentro del rango antes de cambiar la estructura.",confidence:"media"};
+  const rirs=sets.map(x=>Number(x.rir)).filter(Number.isFinite);
+  const reps=sets.map(x=>Number(x.reps)).filter(Number.isFinite);
+  const avgRir=rirs.length?rirs.reduce((a,b)=>a+b,0)/rirs.length:null;
+  const avgReps=reps.length?reps.reduce((a,b)=>a+b,0)/reps.length:null;
+  if(avgRir!==null&&avgRir<1)return{signal:"Esfuerzo demasiado alto",action:"No progresar carga ni volumen; recuperar y volver al RIR objetivo.",confidence:"media"};
+  if(avgRir!==null&&avgRir>3.5)return{signal:"Esfuerzo demasiado bajo",action:"Considera aumentar progresivamente la carga disponible manteniendo técnica y RIR objetivo.",confidence:"media"};
+  return{signal:"Rendimiento utilizable",action:avgReps!==null?"Mantén la técnica y progresa dentro del rango antes de introducir otra variante.":"Mantén la carga y registra RIR.",confidence:"media"};
+}
+function applyConditionalVolumeProgression(plan,goal,weekIndex,previousWeekIndex){
+  const phase=periodizationForWeek(goal,weekIndex);
+  if(!phase.volumeProgression||previousWeekIndex<0)return plan;
+  const added={};
+  plan.forEach(day=>(day.exercises||[]).forEach(e=>{
+    const signal=performanceSignal(e,previousWeekIndex);
+    e.progression=signal;
+    const band=volumeBandForGoal(goal,e.group);
+    if(signal.signal!=="Rendimiento utilizable"||!band[1])return;
+    const current=(added[e.group]||0)+plan.reduce((sum,d)=>
+      sum+(d.exercises||[]).filter(x=>x.group===e.group).reduce((s,x)=>s+(Number(x.sets)||0),0),0);
+    if(current<band[1]){
+      e.sets=(Number(e.sets)||1)+1;
+      added[e.group]=(added[e.group]||0)+1;
+      e.volumeProgression="Añade 1 serie en la transición de dos semanas cuando el rendimiento/RIR lo permite; se detiene al alcanzar el techo operativo del rango inicial.";
+    }
+  }));
+  return plan;
+}
+function exerciseOrderScore(e){
+  const n=String(e.name||"").toLowerCase();
+  const isolation=["extensión","curl","elevación","aperturas","patada","abducción","crunch","plancha","dead bug","pallof"].some(x=>n.includes(x));
+  const compound=["sentadilla","prensa","peso muerto","hip thrust","press","remo","jalón","dominadas","fondos"].some(x=>n.includes(x));
+  return isolation?3:compound?1:2;
+}
+function applyExerciseOrder(plan,goal){
+  // The order effect is relevant to strength; hypertrophy does not receive an assumed order advantage.
+  if(goal!=="Ganar fuerza general")return plan;
+  plan.forEach(day=>day.exercises.sort((a,b)=>exerciseOrderScore(a)-exerciseOrderScore(b)));
+  return plan;
 }
 function trainingEngine(days,level,goal,focus,profile,weekIndex,distribution){
   const phase=periodizationForWeek(goal,weekIndex),split=splitFor(days,focus,goal,distribution);
   let plan=split.map(type=>({title:type,exercises:exercisesFor(type,level,focus,{goal,level,weekIndex,profile})}));
   plan=distributeWeeklySets(plan,goal);
-  const previousWeek=weekIndex-1;
+  plan=applyConditionalVolumeProgression(plan,goal,weekIndex,weekIndex-1);
+  plan=applyExerciseOrder(plan,goal);
   plan.forEach(day=>(day.exercises||[]).forEach(e=>{
     e.weekRole=phase.phase;e.phase=phase.phase;e.weekIndex=weekIndex;e.planGoal=goal;e.planLevel=level;
-    e.periodizationNote=phase.phase;e.evidenceRefs=Array.from(new Set([...(e.evidenceRefs||[]),...phase.evidenceRefs]));
-    e.progression=performanceSignal(e,previousWeek);
-    e.loadGuide=e.progression.confidence==="baja"?"Usa el RIR objetivo y registra la ejecución; la siguiente semana se autorregula.":e.progression.action;
+    e.periodizationNote=phase.phase;
+    const phaseRefs=["acsm2026","periodization2022","autoregulation2022","volumeModel2024"];
+    if(phase.volumeProgression)phaseRefs.push("setProgression2025","volumeProgression2025");
+    if(goal==="Ganar fuerza general")phaseRefs.push("order2021","load2021");
+    e.evidenceRefs=Array.from(new Set([...(e.evidenceRefs||[]),...phaseRefs]));
+    if(!e.progression)e.progression=performanceSignal(e,weekIndex-1);
+    e.loadGuide=e.progression.confidence==="baja"
+      ?"Usa el RIR objetivo y registra la ejecución; la siguiente progresión depende de tus datos."
+      :e.progression.action;
     applyLoadToExercise(e,e.loadLevel,{goal,level,weekIndex});
   }));
   const effective=calculateEffectiveWeeklySets(plan);
@@ -500,7 +543,7 @@ function generateRoutine(days,level,goal,focus,distribution){
     engine:"Evidence Training Engine 2026",evidenceVersion:EVIDENCE_VERSION,programLengthWeeks:6,
     evidenceModel:{
       directSetFactor:1,indirectSetFactor:INDIRECT_SET_FACTOR,
-      autoregulation:"RIR + rendimiento registrado",
+      autoregulation:"RIR + rendimiento registrado",volumeProgression:"Sólo en semanas 3 y 5 y sólo si existe rendimiento registrado; una serie por grupo como máximo por transición.",
       periodization:"6 semanas: Base → Progresión → Progresión de dosis → Intensificación → Consolidación → Reducción de fatiga",
       structure:"Combinaciones acotadas por días; no se mezclan macroestructuras arbitrariamente.",
       note:"La literatura respalda variables y principios; la secuencia exacta de seis semanas es una implementación transparente y no una prescripción universal de un solo estudio."
@@ -565,7 +608,7 @@ function renderDistributionOptions(){
 function renderSplitPreview(){
  const days=Number($("#generatorDays")?.value||3),focus=$("#generatorFocus")?.value||"general",goal=$("#generatorGoal")?.value||"Ganar masa muscular",distribution=$("#generatorDistribution")?.value||defaultDistributionForDays(days),opt=getDistribution(days,distribution),split=splitFor(days,focus,goal,opt.value),box=$("#splitPreview");
  if(!box)return;
- box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista y acotada. Prime OS no sortea sesiones: usa combinaciones predefinidas por días y rota sólo variantes internas curadas semana a semana.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión · Semana 4 Intensificación · Semana 5 Reducción de fatiga.</div>`;
+ box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista y acotada. Prime OS no sortea sesiones: usa combinaciones predefinidas por días y rota sólo variantes internas curadas semana a semana.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión de dosis · Semana 4 Intensificación · Semana 5 Consolidación · Semana 6 Reducción de fatiga.</div>`;
 }
 function renderSelectors(){ $("#weekSelect").innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${w}</option>`).join(""); const days=Object.keys(state.routine[state.selectedWeek]||{}),list=days.length?days:Array.from({length:state.planMeta.days||3},(_,i)=>`Día ${i+1}`); if(!list.includes(state.selectedDay))state.selectedDay=list[0]||"Día 1"; $("#daySelect").innerHTML=list.map(d=>`<option ${d===state.selectedDay?"selected":""}>${d}</option>`).join("");}
 function currentDayObj(){return state.routine[state.selectedWeek]?.[state.selectedDay]||{title:"Sin rutina",exercises:[]};}
