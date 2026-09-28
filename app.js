@@ -1085,6 +1085,7 @@ function renderProgress(){
  if(weekSel){weekSel.innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${escapeHtml(w)}</option>`).join("");}
 }
 function addWeek(){
+ if(state.planMeta?.programLengthWeeks===6||state.weeks.length>=6){alert("El bloque actual está definido en 6 semanas. Genera un nuevo bloque cuando quieras reiniciar la progresión.");return;}
  const last=state.weeks[state.weeks.length-1],nextNum=Number((last.match(/\d+/)||[state.weeks.length])[0])+1,next=`Semana ${nextNum}`;
  state.weeks.push(next);
  const n=Number(state.planMeta?.days||state.profile?.days||3),level=state.planMeta?.level||state.profile?.level||"Intermedio",goal=state.planMeta?.goal||state.profile?.goal||"Salud general",focus=state.planMeta?.focus||state.profile?.focus||"general",dist=state.planMeta?.distribution||defaultDistributionForDays(n);
