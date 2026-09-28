@@ -554,6 +554,14 @@ function generateRoutine(days,level,goal,focus,distribution){
   };
   state.weeks=["Semana 1","Semana 2","Semana 3","Semana 4","Semana 5","Semana 6"];
   state.routine={};
+  // A new plan is a new planning context: do not leave Registrar attached to an old edited session.
+  state.ui=state.ui||{};
+  state.ui.register=state.ui.register||{};
+  state.ui.register.editingSessionId=null;
+  state.ui.register.week="Semana 1";
+  state.ui.register.sessionKey="Día 1";
+  state.ui.register.performedDate=state.ui.register.performedDate||localDateISO();
+  state.ui.register.modality=modalityForDays(n);
   state.weeks.forEach((week,weekIndex)=>{
     const plan=trainingEngine(n,level,goal,focus,profile,weekIndex,selected.value);
     state.routine[week]={};
@@ -587,7 +595,11 @@ function reconcileGeneratedPlan(){
   const days=Number(state.planMeta?.days||state.profile?.days||0);
   const weeks=Array.isArray(state.weeks)?state.weeks:[];
   if(!days||!weeks.length||!state.planMeta?.generated)return false;
-  const validWeeks=weeks.filter(w=>Object.keys(state.routine?.[w]||{}).length===days);
+  const validWeeks=weeks.filter(w=>{
+    const week=state.routine?.[w]||{};
+    const dayKeys=Object.keys(week);
+    return dayKeys.length===days && dayKeys.every(k=>(week[k]?.exercises||[]).length>0);
+  });
   return validWeeks.length===weeks.length;
 }
 function go(view){
