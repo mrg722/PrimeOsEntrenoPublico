@@ -473,27 +473,28 @@ function performanceSignal(exercise,previousWeekIndex){
   if(!sets.length)return{signal:"Sin datos previos",action:"Registra peso, repeticiones y RIR para ajustar la próxima semana.",confidence:"baja"};
   const rirs=sets.map(x=>Number(x.rir)).filter(Number.isFinite);
   const reps=sets.map(x=>Number(x.reps)).filter(Number.isFinite);
-  const avgRir=rirs.length?rirs.reduce((a,b)=>a+b,0)/rirs.length:null;
+  if(!rirs.length)return{signal:"Datos insuficientes",action:"Registra RIR además de peso y repeticiones antes de aumentar la dosis.",confidence:"baja"};
+  const avgRir=rirs.reduce((a,b)=>a+b,0)/rirs.length;
   const avgReps=reps.length?reps.reduce((a,b)=>a+b,0)/reps.length:null;
-  if(avgRir!==null&&avgRir<1)return{signal:"Esfuerzo demasiado alto",action:"No progresar carga ni volumen; recuperar y volver al RIR objetivo.",confidence:"media"};
-  if(avgRir!==null&&avgRir>3.5)return{signal:"Esfuerzo demasiado bajo",action:"Considera aumentar progresivamente la carga disponible manteniendo técnica y RIR objetivo.",confidence:"media"};
+  if(avgRir<1)return{signal:"Esfuerzo demasiado alto",action:"No progresar carga ni volumen; recuperar y volver al RIR objetivo.",confidence:"media"};
+  if(avgRir>3.5)return{signal:"Esfuerzo demasiado bajo",action:"Considera aumentar progresivamente la carga disponible manteniendo técnica y RIR objetivo.",confidence:"media"};
   return{signal:"Rendimiento utilizable",action:avgReps!==null?"Mantén la técnica y progresa dentro del rango antes de introducir otra variante.":"Mantén la carga y registra RIR.",confidence:"media"};
 }
 function applyConditionalVolumeProgression(plan,goal,weekIndex,previousWeekIndex){
   const phase=periodizationForWeek(goal,weekIndex);
   if(!phase.volumeProgression||previousWeekIndex<0)return plan;
   const added={};
+  const direct={};
+  plan.forEach(day=>(day.exercises||[]).forEach(e=>{direct[e.group]=(direct[e.group]||0)+(Number(e.sets)||0);}));
   plan.forEach(day=>(day.exercises||[]).forEach(e=>{
     const signal=performanceSignal(e,previousWeekIndex);
     e.progression=signal;
     const band=volumeBandForGoal(goal,e.group);
-    if(signal.signal!=="Rendimiento utilizable"||!band[1])return;
-    const current=(added[e.group]||0)+plan.reduce((sum,d)=>
-      sum+(d.exercises||[]).filter(x=>x.group===e.group).reduce((s,x)=>s+(Number(x.sets)||0),0),0);
-    if(current<band[1]){
+    if(signal.signal!=="Rendimiento utilizable"||!band[1]||(added[e.group]||0)>=1)return;
+    if((direct[e.group]||0)<band[1]){
       e.sets=(Number(e.sets)||1)+1;
-      added[e.group]=(added[e.group]||0)+1;
-      e.volumeProgression="Añade 1 serie en la transición de dos semanas cuando el rendimiento/RIR lo permite; se detiene al alcanzar el techo operativo del rango inicial.";
+      added[e.group]=1;
+      e.volumeProgression="Se añade 1 serie en una transición de dos semanas sólo cuando el rendimiento y el RIR previo lo permiten y el grupo sigue bajo el techo operativo.";
     }
   }));
   return plan;
@@ -608,7 +609,7 @@ function renderDistributionOptions(){
 function renderSplitPreview(){
  const days=Number($("#generatorDays")?.value||3),focus=$("#generatorFocus")?.value||"general",goal=$("#generatorGoal")?.value||"Ganar masa muscular",distribution=$("#generatorDistribution")?.value||defaultDistributionForDays(days),opt=getDistribution(days,distribution),split=splitFor(days,focus,goal,opt.value),box=$("#splitPreview");
  if(!box)return;
- box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista y acotada. Prime OS no sortea sesiones: usa combinaciones predefinidas por días y rota sólo variantes internas curadas semana a semana.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión de dosis · Semana 4 Intensificación · Semana 5 Consolidación · Semana 6 Reducción de fatiga.</div>`;
+ box.innerHTML=`<div class="decision green"><strong>Distribución:</strong> ${escapeHtml(opt.label)}<br><span class="small-muted">${escapeHtml(opt.basis)}</span><br><span class="small-muted">Estructura determinista y acotada. Prime OS no sortea sesiones: usa combinaciones predefinidas por días y rota sólo variantes internas curadas dentro del patrón elegido.</span></div>`+split.map((name,i)=>`<div class="split-day"><h4>Sesión ${i+1} · ${escapeHtml(name)}</h4><p>${summaryForSplit(name)}</p></div>`).join("")+`<div class="decision"><strong>Periodización:</strong> Semana 1 Base · Semana 2 Progresión · Semana 3 Progresión de dosis · Semana 4 Intensificación · Semana 5 Consolidación · Semana 6 Reducción de fatiga.</div>`;
 }
 function renderSelectors(){ $("#weekSelect").innerHTML=state.weeks.map(w=>`<option ${w===state.selectedWeek?"selected":""}>${w}</option>`).join(""); const days=Object.keys(state.routine[state.selectedWeek]||{}),list=days.length?days:Array.from({length:state.planMeta.days||3},(_,i)=>`Día ${i+1}`); if(!list.includes(state.selectedDay))state.selectedDay=list[0]||"Día 1"; $("#daySelect").innerHTML=list.map(d=>`<option ${d===state.selectedDay?"selected":""}>${d}</option>`).join("");}
 function currentDayObj(){return state.routine[state.selectedWeek]?.[state.selectedDay]||{title:"Sin rutina",exercises:[]};}
