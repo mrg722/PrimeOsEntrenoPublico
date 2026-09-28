@@ -318,7 +318,10 @@ function hydrateExercise(e,context={}){
  else{e.equipment=e.equipment||"Equipo a definir";e.objective=e.objective||"Ejercicio personalizado.";e.how=e.how||"Describe cómo se ejecuta este ejercicio.";e.recommendation=e.recommendation||e.note||"Edita la recomendación.";e.note=e.note||e.recommendation;e.baseReps=e.baseReps||e.reps||"10-12";e.baseRest=e.baseRest||e.rest||"90 s";}
  e.loadLevel=e.loadLevel||"Moderado";
  const current=APP_READY?state:null;
- applyLoadToExercise(e,e.loadLevel,{goal:context.goal||(current?.planMeta?.goal),level:context.level||(current?.planMeta?.level),weekIndex:context.weekIndex||0});
+ const goal=context.goal||e.planGoal||(current?.planMeta?.goal)||"Salud general";
+ const level=context.level||e.planLevel||(current?.planMeta?.level)||"Intermedio";
+ const weekIndex=context.weekIndex??e.weekIndex??0;
+ applyLoadToExercise(e,e.loadLevel,{goal,level,weekIndex});
  return e;
 }
 
@@ -410,7 +413,7 @@ function trainingEngine(days,level,goal,focus,profile,weekIndex,distribution){
  let plan=split.map(type=>({title:type,exercises:exercisesFor(type,level,focus,{goal,level,weekIndex,profile})}));
  plan=distributeWeeklySets(plan,goal);
  plan.forEach(day=>(day.exercises||[]).forEach(e=>{
-  e.weekRole=phase.phase;e.phase=phase.phase;
+  e.weekRole=phase.phase;e.phase=phase.phase;e.weekIndex=weekIndex;e.planGoal=goal;e.planLevel=level;
   e.periodizationNote=weekIndex===4?"Reducción de fatiga programada; no es una regla universal.":"Variación semanal explícita de carga/repeticiones/RIR para el objetivo seleccionado.";
   e.loadLevel=phase.loadLevel;
   e.sets=Math.max(1,Math.round(Number(e.sets||1)*phase.setFactor));
@@ -656,7 +659,7 @@ function renderRoutine(){
 
 function localDateISO(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
 function weekdayLabel(dateISO){try{return new Intl.DateTimeFormat("es-CL",{weekday:"long"}).format(new Date(dateISO+"T12:00:00"));}catch(e){return "";}}
-function modalityForDays(days){const n=Math.max(1,Math.min(6,Number(days)||3));return `${n} días`;}
+function modalityForDays(days){const n=Math.max(1,Math.min(6,Number(days)||3));return n===1?"1 día":`${n} días`;}
 function ensureRegistrationState(){
   state.ui=state.ui||{};state.ui.register=state.ui.register||{};
   const r=state.ui.register,planDays=Number(state.planMeta?.days||state.profile?.days||3);
@@ -734,7 +737,8 @@ function collectRegisterDraft(){
       if(manualSets)ex.sets=Number(manualSets||ex.sets);
       if(manualReps){ex.reps=manualReps;ex.userOverrideReps=true;}
       if(manualRest){ex.rest=manualRest;ex.userOverrideRest=true;}
-      applyLoadToExercise(ex,level,{goal:state.planMeta?.goal,level:state.planMeta?.level,weekIndex:0});
+      const plannedExercise=source==="routine"?getRegisterPlan().obj.exercises[idx]:null;
+      applyLoadToExercise(ex,level,{goal:state.planMeta?.goal||ex.planGoal,level:state.planMeta?.level||ex.planLevel,weekIndex:plannedExercise?.weekIndex??ex.weekIndex??0});
       return ex;
     };
 
@@ -1021,7 +1025,7 @@ function bindControls(){
   $("#addWeekBtn").addEventListener("click",addWeek); $("#exportBtn").addEventListener("click",exportExcel);
   $("#saveFormBtn").addEventListener("click",()=>{const errors=validateProfile(); if(errors.length){showValidation(errors);return;} renderScreening();renderHome();alert("Formulario guardado.");});
   $("#exportAnamnesisBtn")?.addEventListener("click",exportAnamnesisWord);
-  $("#generateFromFormBtn").addEventListener("click",()=>{const errors=validateProfile();if(errors.length){showValidation(errors);return;}const dist=state.profile.distribution||defaultDistributionForDays(state.profile.days);const ok=generateRoutine(state.profile.days,state.profile.level,state.profile.goal,state.profile.focus,dist);$("#generatorDays").value=state.profile.days;$("#generatorLevel").value=state.profile.level;$("#generatorGoal").value=state.profile.goal;$("#generatorFocus").value=state.profile.focus;renderDistributionOptions();$("#generatorDistribution").value=dist;if(ok)go("rutina");});
+  $("#generateFromFormBtn").addEventListener("click",()=>{const errors=validateProfile();if(errors.length){showValidation(errors);return;}const days=Number(state.profile.days||3),dist=getDistribution(days,state.profile.distribution).value;const ok=generateRoutine(days,state.profile.level,state.profile.goal,state.profile.focus,dist);$("#generatorDays").value=days;$("#generatorLevel").value=state.profile.level;$("#generatorGoal").value=state.profile.goal;$("#generatorFocus").value=state.profile.focus;renderDistributionOptions();$("#generatorDistribution").value=dist;if(ok)go("rutina");});
   ["generatorDays","generatorFocus","generatorLevel","generatorGoal"].forEach(id=>$("#"+id).addEventListener("change",()=>{
     if(id==="generatorDays")renderDistributionOptions();
     renderSplitPreview();
